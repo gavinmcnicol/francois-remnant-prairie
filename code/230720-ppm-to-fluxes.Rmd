@@ -1,0 +1,567 @@
+---
+title: "ppm-to-fluxes"
+author: "Gavin McNicol"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load-libraries}
+library(tidyverse)
+library(lubridate)
+library(janitor)
+library(stringi)
+library(broom)
+library(reshape2)
+source("functions/convert_ppm_min_flux.R")
+```
+
+```{r}
+files <- list.files("data/tidy/230720", pattern = "ppm")
+ghg_ppm <- lapply(paste0("data/tidy/230720/", files), read_csv) %>% bind_rows()
+ghg_ppm
+```
+
+```{r}
+min_elapsed <- read_csv("data/tidy/230720/230720_min_elapsed.csv")
+ghg_ppm <- ghg_ppm %>% 
+  mutate(ecosystem = case_when(
+    grepl("P", rep) ~ paste0(ecosystem, "P"),
+    TRUE ~ ecosystem
+  )) %>% 
+  mutate(rep = str_remove(rep, "P")) %>% 
+  separate(rep, c("pref", "suff"), "-") %>% 
+  mutate(pref = as.numeric(pref),
+         suff = as.numeric(suff)) %>% 
+  left_join(min_elapsed, by = c("ecosystem", "pref", "suff", "timepoint")) %>% 
+  mutate(date_collected = "230720",
+         ecosystem = case_when(
+           is.na(pref) ~ paste0(ecosystem, "P"),
+           TRUE ~ ecosystem
+         ))
+ghg_ppm
+```
+### CO2 - Prairie
+
+visualize linear co2 fits
+
+```{r}
+ghg_ppm %>% 
+  filter(ecosystem == "Pr") %>% 
+  ggplot(aes(x = min_elapsed, y = co2_ppm)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  facet_wrap(~ecosystem+pref+suff, 
+             scales = "fixed") + 
+  theme_classic() +
+  theme(
+  strip.background = element_blank(),
+  strip.text.x = element_blank()
+)
+ggsave("data/diagnostics/230720_prairie_co2_lm.png")
+```
+
+### CO2 - North Woodland 
+
+visualize linear co2 fits
+
+```{r}
+ghg_ppm %>% 
+  filter(ecosystem == "NWd") %>% 
+  
+  ## Code to filter out bad time points
+  mutate(co2_ppm = case_when(
+    pref == 2 & suff == 3 & timepoint %in% c("t3", "t4") ~ NA,
+    pref == 3 & suff %in% c(1,2) & timepoint %in% c("t3", "t4") ~ NA,
+    TRUE ~ co2_ppm
+  )) %>%
+  
+  ggplot(aes(x = min_elapsed, y = co2_ppm)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  facet_wrap(~ecosystem+pref+suff, 
+             scales = "fixed") + 
+  theme_classic() +
+  theme(
+  strip.background = element_blank(),
+  strip.text.x = element_blank()
+)
+ggsave("data/diagnostics/230720_north_woodland_co2_lm.png")
+```
+
+### CO2 - South Woodland 
+
+visualize linear co2 fits
+
+```{r}
+ghg_ppm %>% 
+  filter(ecosystem == "SWd") %>% 
+  
+  ## Code to filter out bad time points\
+  mutate(co2_ppm = case_when(
+    pref == 3 & suff %in% c(3) & timepoint == "t4" ~ NA,
+    TRUE ~ co2_ppm
+  )) %>%
+  
+  ggplot(aes(x = min_elapsed, y = co2_ppm)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  facet_wrap(~ecosystem+pref+suff, 
+             scales = "fixed") + 
+  theme_classic() +
+  theme(
+  strip.background = element_blank(),
+  strip.text.x = element_blank()
+)
+ggsave("data/diagnostics/230720_south_woodland_co2_lm.png")
+```
+
+### CO2 - Wetlands 
+
+visualize linear co2 fits
+
+```{r}
+ghg_ppm %>% 
+  filter(ecosystem == "Wt") %>% 
+  
+  # ## Code to filter out bad time points\
+  # mutate(co2_ppm = case_when(
+  #   pref == 2 & suff %in% c(4) & timepoint %in% c("t1", "t3") ~ NA,
+  #   TRUE ~ co2_ppm
+  # )) %>%
+  
+  ggplot(aes(x = min_elapsed, y = co2_ppm)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  facet_wrap(~ecosystem+pref+suff, 
+             scales = "fixed") + 
+  theme_classic() +
+  theme(
+  strip.background = element_blank(),
+  strip.text.x = element_blank()
+)
+ggsave("data/diagnostics/230720_wetland_co2_lm.png")
+```
+fit linear co2 models
+
+```{r}
+ghg_ppm %>%
+    filter(ecosystem %in% c("Pr", "NWd", "SWd", "Wt")) %>% 
+    ## Code to filter out bad time points
+  mutate(
+    co2_ppm = case_when(
+    ecosystem == "NWd" & pref == 3 & suff %in% c(1, 2) & timepoint == "t3" ~ NA,
+    TRUE ~ co2_ppm),
+  ) %>% 
+  nest_by(ecosystem, pref, suff) %>% 
+  mutate(lm_co2 = list(lm(co2_ppm ~ min_elapsed, data = data)),
+         lm_ch4 = list(lm(ch4_ppm ~ min_elapsed, data = data)),
+         lm_n2o = list(lm(n2o_ppm ~ min_elapsed, data = data))) %>%
+  summarize(tidy(lm_co2)) %>% 
+  filter(term == "min_elapsed") %>% 
+  write_csv("data/final/230720_co2_fluxes.csv")
+```
+
+
+### CH4 - Prairie
+
+visualize linear ch4 fits
+
+```{r}
+ghg_ppm %>% 
+  filter(ecosystem == "Pr") %>% 
+  ggplot(aes(x = min_elapsed, y = ch4_ppm)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  facet_wrap(~ecosystem+pref+suff, 
+             scales = "fixed") + 
+  theme_classic() +
+  theme(
+  strip.background = element_blank(),
+  strip.text.x = element_blank()
+)
+ggsave("data/diagnostics/230720_prairie_ch4_lm.png")
+```
+
+### CH4 - North Woodland
+
+visualize linear ch4 fits
+
+```{r}
+ghg_ppm %>% 
+  filter(ecosystem == "NWd") %>% 
+  
+  # ## Code to filter out bad time points\
+  # mutate(ch4_ppm = case_when(
+  #   pref == 1 & suff %in% c(2, 3, 4) & timepoint == "t3" ~ NA,
+  #   pref == 2 & suff %in% c(2, 3) & timepoint == "t3" ~ NA,
+  #   pref == 3 & suff %in% c(1, 2) & timepoint == "t3" ~ NA,
+  #   TRUE ~ ch4_ppm
+  # )) %>% 
+  
+  ggplot(aes(x = min_elapsed, y = ch4_ppm)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  facet_wrap(~ecosystem+pref+suff, 
+             scales = "fixed") + 
+  theme_classic() +
+  theme(
+  strip.background = element_blank(),
+  strip.text.x = element_blank()
+)
+ggsave("data/diagnostics/230720_north_woodland_ch4_lm.png")
+```
+
+### CH4 - South Woodland
+
+visualize linear ch4 fits
+
+```{r}
+ghg_ppm %>% 
+  filter(ecosystem == "SWd") %>% 
+  
+  # ## Code to filter out bad time points\
+  # mutate(ch4_ppm = case_when(
+  #   pref == 3 & suff %in% c(2) & timepoint == "t4" ~ NA,
+  #   TRUE ~ ch4_ppm
+  # )) %>%
+  
+  ggplot(aes(x = min_elapsed, y = ch4_ppm)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  facet_wrap(~ecosystem+pref+suff, 
+             scales = "fixed") + 
+  theme_classic() +
+  theme(
+  strip.background = element_blank(),
+  strip.text.x = element_blank()
+)
+ggsave("data/diagnostics/230720_south_woodland_ch4_lm.png")
+```
+
+### CH4 - Wetlands 
+
+visualize linear ch4 fits
+
+```{r}
+ghg_ppm %>% 
+  filter(ecosystem == "Wt") %>% 
+  
+  # ## Code to filter out bad time points\
+  # mutate(co2_ppm = case_when(
+  #   pref == 2 & suff %in% c(4) & timepoint %in% c("t1", "t3") ~ NA,
+  #   TRUE ~ co2_ppm
+  # )) %>%
+  
+  ggplot(aes(x = min_elapsed, y = ch4_ppm)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  facet_wrap(~ecosystem+pref+suff, 
+             scales = "fixed") + 
+  theme_classic() +
+  theme(
+  strip.background = element_blank(),
+  strip.text.x = element_blank()
+)
+ggsave("data/diagnostics/230720_wetland_ch4_lm.png")
+```
+
+
+fit linear ch4 models
+
+```{r}
+ghg_ppm %>%
+    filter(ecosystem %in% c("Pr", "NWd", "SWd", "Wt")) %>% 
+  ## Code to filter out bad time points
+  mutate(ch4_ppm = case_when(
+    ecosystem == "NWd" & pref == 1 & suff %in% c(2, 3, 4) & timepoint == "t3" ~ NA,
+    ecosystem == "NWd" & pref == 2 & suff %in% c(2, 3) & timepoint == "t3" ~ NA,
+    ecosystem == "NWd" & pref == 3 & suff %in% c(1, 2) & timepoint == "t3" ~ NA,
+    ecosystem == "SWd" & pref == 3 & suff %in% c(2) & timepoint == "t4" ~ NA,
+    TRUE ~ ch4_ppm
+  )) %>% 
+  nest_by(ecosystem, pref, suff) %>% 
+  mutate(lm_co2 = list(lm(co2_ppm ~ min_elapsed, data = data)),
+         lm_ch4 = list(lm(ch4_ppm ~ min_elapsed, data = data)),
+         lm_n2o = list(lm(n2o_ppm ~ min_elapsed, data = data))) %>%
+  summarize(tidy(lm_ch4)) %>% 
+  filter(term == "min_elapsed") %>% 
+  write_csv("data/final/230720_ch4_fluxes.csv")
+```
+
+### N2O - Prairie
+
+visualize linear n2o fits
+
+```{r}
+ghg_ppm %>% 
+  filter(ecosystem == "Pr") %>% 
+  ggplot(aes(x = min_elapsed, y = n2o_ppm)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  facet_wrap(~ecosystem+pref+suff, 
+             scales = "fixed") + 
+  theme_classic() +
+  theme(
+  strip.background = element_blank(),
+  strip.text.x = element_blank()
+)
+ggsave("data/diagnostics/230720_prairie_n2o_lm.png")
+```
+
+### N2O - North Woodland
+
+visualize linear n2o fits
+
+```{r}
+ghg_ppm %>% 
+  filter(ecosystem == "NWd") %>% 
+  
+  # ## Code to filter out bad time points\
+  # mutate(n2o_ppm = case_when(
+  #   pref == 1 & suff %in% c(2, 3, 4) & timepoint == "t3" ~ NA,
+  #   pref == 2 & suff %in% c(2, 3) & timepoint == "t3" ~ NA,
+  #   pref == 3 & suff %in% c(1, 2) & timepoint == "t3" ~ NA,
+  #   TRUE ~ n2o_ppm
+  # )) %>% 
+  
+  ggplot(aes(x = min_elapsed, y = n2o_ppm)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  facet_wrap(~ecosystem+pref+suff, 
+             scales = "fixed") + 
+  theme_classic() +
+  theme(
+  strip.background = element_blank(),
+  strip.text.x = element_blank()
+)
+ggsave("data/diagnostics/230720_north_woodland_n2o_lm.png")
+```
+
+### N2O - South Woodland
+
+visualize linear n2o fits
+
+```{r}
+ghg_ppm %>% 
+  filter(ecosystem == "SWd") %>% 
+  
+  # ## Code to filter out bad time points\
+  # mutate(n2o_ppm = case_when(
+  #   pref == 3 & suff %in% c(2) & timepoint == "t4" ~ NA,
+  #   TRUE ~ n2o_ppm
+  # )) %>%
+  
+  ggplot(aes(x = min_elapsed, y = n2o_ppm)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  facet_wrap(~ecosystem+pref+suff, 
+             scales = "fixed") + 
+  theme_classic() +
+  theme(
+  strip.background = element_blank(),
+  strip.text.x = element_blank()
+)
+ggsave("data/diagnostics/230720_south_woodland_n2o_lm.png")
+```
+
+### N2O - Wetlands 
+
+visualize linear n2o fits
+
+```{r}
+ghg_ppm %>% 
+  filter(ecosystem == "Wt") %>% 
+  
+  # ## Code to filter out bad time points\
+  # mutate(co2_ppm = case_when(
+  #   pref == 2 & suff %in% c(4) & timepoint %in% c("t1", "t3") ~ NA,
+  #   TRUE ~ co2_ppm
+  # )) %>%
+  
+  ggplot(aes(x = min_elapsed, y = n2o_ppm)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  facet_wrap(~ecosystem+pref+suff, 
+             scales = "fixed") + 
+  theme_classic() +
+  theme(
+  strip.background = element_blank(),
+  strip.text.x = element_blank()
+)
+ggsave("data/diagnostics/230720_wetland_n2o_lm.png")
+```
+
+
+fit linear n2o models
+
+```{r}
+ghg_ppm %>%
+    filter(ecosystem %in% c("Pr", "NWd", "SWd", "Wt")) %>% 
+  ## Code to filter out bad time points\
+  mutate(n2o_ppm = case_when(
+    ecosystem == "NWd" & pref == 2 & suff == 3 & timepoint %in% c("t3", "t4") ~ NA,
+    ecosystem == "NWd" & pref == 3 & suff %in% c(1,2) & timepoint %in% c("t3", "t4") ~ NA,
+    ecosystem == "SWd" & pref == 3 & suff %in% c(3) & timepoint == "t4" ~ NA,
+    TRUE ~ n2o_ppm
+  )) %>% 
+  nest_by(ecosystem, pref, suff) %>% 
+  mutate(lm_co2 = list(lm(co2_ppm ~ min_elapsed, data = data)),
+         lm_ch4 = list(lm(ch4_ppm ~ min_elapsed, data = data)),
+         lm_n2o = list(lm(n2o_ppm ~ min_elapsed, data = data))) %>%
+  summarize(tidy(lm_n2o)) %>% 
+  filter(term == "min_elapsed") %>% 
+  write_csv("data/final/230720_n2o_fluxes.csv")
+```
+
+## get fluxes to plot
+
+```{r read}
+co2 <- read_csv("data/final/230720_co2_fluxes.csv") %>% 
+  mutate(gas = "co2")
+ch4 <- read_csv("data/final/230720_ch4_fluxes.csv") %>% 
+  mutate(gas = "ch4")
+n2o <- read_csv("data/final/230720_n2o_fluxes.csv") %>% 
+  mutate(gas = "n2o")
+```
+
+get chamber temps and vols
+
+```{r chamber-temps}
+chamber_temps <- read_csv("data/tidy/230720/230720_chamber_temps.csv")
+chamber_vols <- read_csv("data/tidy/2023_chamber_vols.csv")
+```
+
+
+merge and convert units
+
+```{r merge}
+fluxes <- co2 %>% bind_rows(ch4) %>% bind_rows(n2o) %>% 
+  select(ecosystem, pref, suff, gas, estimate, p.value) %>% 
+  left_join(chamber_temps, by = c("ecosystem", "pref", "suff")) %>% 
+  select(-temp_start, -temp_end) %>% 
+  left_join(chamber_vols, by = c("ecosystem", "pref", "suff")) %>% 
+  rowwise() %>% 
+  mutate(flux = convert_ppm_min_flux(gas, estimate, total_vol_m3, average_temp_kelvin)) %>% 
+  mutate(units = ifelse(gas == "co2", "umol_m2_s1", NA),
+         units = ifelse(gas == "ch4", "nmol_m2_s1", units),
+         units = ifelse(gas == "n2o", "nmol_m2_s1", units))
+fluxes
+```
+
+save final flux data
+
+```{r}
+write_csv(fluxes, "data/final/230720_fluxes.csv")
+```
+
+### CO2 - Prairie Photosynthesis
+
+visualize linear co2 fits DARK respiration
+
+```{r}
+ghg_ppm %>% 
+  filter(ecosystem %in% c("PrP", "NWdP", "SWdP", "WtP") & suff == 2) %>% 
+  # filter(ecosystem == "NWdP") %>% 
+  # arrange(pref, suff)
+
+   ## Code to filter out bad time points
+  mutate(co2_ppm = case_when(
+    timepoint == "t3" ~ NA,
+    TRUE ~ co2_ppm
+  )) %>%
+  
+  ggplot(aes(x = min_elapsed, y = co2_ppm)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  facet_wrap(~ecosystem+pref+suff, 
+             scales = "free_y") + 
+  theme_classic() +
+  theme(
+  strip.background = element_blank(),
+  # strip.text.x = element_blank()
+) + labs(title = "Dark Respiration")
+ggsave("data/diagnostics/230720_prairie_co2p_lm_dark.png")
+```
+
+visualize linear co2 fits net CO2 flux
+
+```{r}
+ghg_ppm %>% 
+  filter(ecosystem %in% c("PrP", "NWdP", "SWdP", "WtP") & suff == 1) %>% 
+  # filter(ecosystem == "NWdP") %>% 
+  # arrange(pref, suff)
+
+   ## Code to filter out bad time points
+  mutate(co2_ppm = case_when(
+    timepoint == "t3" ~ NA,
+    TRUE ~ co2_ppm
+  )) %>%
+  
+  ggplot(aes(x = min_elapsed, y = co2_ppm)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  facet_wrap(~ecosystem+pref+suff, 
+             scales = "free_y") + 
+  theme_classic() +
+  theme(
+  strip.background = element_blank(),
+  # strip.text.x = element_blank()
+) + labs(title = "Dark Respiration")
+ggsave("data/diagnostics/230720_prairie_co2p_lm_dark.png")
+```
+
+fit linear co2 models
+
+```{r}
+ghg_ppm %>%
+    filter(ecosystem %in% c("PrP", "NWdP", "SWdP", "WtP")) %>% 
+    ## Code to filter out bad time points
+  mutate(
+    co2_ppm = case_when(
+    timepoint == "t3" ~ NA,
+    TRUE ~ co2_ppm),
+  ) %>% 
+  nest_by(ecosystem, pref, suff) %>% 
+  mutate(lm_co2 = list(lm(co2_ppm ~ min_elapsed, data = data))) %>%
+  summarize(tidy(lm_co2)) %>% 
+  filter(term == "min_elapsed") %>% 
+  write_csv("data/final/230720_co2p_fluxes.csv")
+```
+
+get chamber temps and vols
+
+```{r chamber-temps}
+chamber_temps <- read_csv("data/tidy/230720/230720_chamber_temps.csv")
+chamber_vols <- read_csv("data/tidy/2023_chamber_vols.csv")
+```
+
+## get fluxes to plot
+
+```{r read}
+co2 <- read_csv("data/final/230720_co2p_fluxes.csv") %>% 
+  mutate(gas = "co2")
+```
+
+merge and convert units
+
+```{r merge}
+fluxes <- co2 %>% 
+  select(ecosystem, pref, suff, gas, estimate, p.value) %>% 
+  left_join(chamber_temps, by = c("ecosystem", "pref", "suff")) %>% 
+  select(-temp_start, -temp_end, -date) %>% 
+  left_join(chamber_vols, by = c("ecosystem", "pref", "suff")) %>% 
+  rowwise() %>% 
+  mutate(flux = convert_ppm_min_flux(gas, estimate, total_vol_m3, average_temp_kelvin)) %>% 
+  mutate(units = ifelse(gas == "co2", "umol_m2_s1", NA))
+fluxes
+```
+
+save final flux data
+
+```{r}
+write_csv(fluxes, "data/final/230720_photosynthesis.csv")
+```
