@@ -1,0 +1,41 @@
+plot,depth_cm,plot_depth_cm,sand,silt ,clay,soil_type 
+UP 1,0,UP 1 0 - 10 ,79,15,3,loamy sand
+UP 1,10,UP 1 10 - 20 ,58,28,14,loam
+UP 1,20,UP 1 20 - 30 ,41,54,3,silt loam
+UP 1,30,UP 1 30 - 40 ,23,77,0,silt loam
+UP 1,40,UP 1 40 - 50 ,,,,
+UP 1,50,UP 1 50 - 60 ,57,41,3,sandy loam
+UP 1,60,UP 1 60 - 70 ,16,78,5,silt
+UP 1,70,UP 1 70 - 80 ,39,61,0,silt loam
+UP 1,80,UP 1 80 - 90 ,49,49,2,silt loam
+UP 1,90,UP 1 90 - 100 ,38,60,2,silt loam
+UP 2,0,UP 2 0 - 10 ,67,19,12,sandy loam
+UP 2,10,UP 2 10 - 20 ,64,18,18,sandy loam
+UP 2,20,UP 2 20 - 30 ,68,25,5,sandy loam
+UP 2,30,UP 2 30 - 40 ,57,31,11,loam
+UP 2,40,UP 2 40 - 50 ,41,56,3,silt loam
+UP 2,50,UP 2 50 - 60 ,41,59,0,silt loam
+UP 2,60,UP 2 60 - 70 ,15,84,2,silt
+UP 2,70,UP 2 70  - 80 ,17,83,0,silt
+UP 2,80,UP 2 80 - 90 ,31,69,0,silt loam
+UP 2,90,UP 2 90 - 100 ,10,90,0,silt
+SW 1,0,SW 1 0 - 10 ,53,26,19,loam
+SW 1,10,SW 1 10 - 20 ,44,42,12,silt loam
+SW 1,20,SW 1 20 - 30 ,34,23,37,silty clay loam
+SW 1,30,SW 1 30 - 40 ,30,70,0,silt loam
+SW 1,40,SW 1 40 - 50 ,28,72,0,silt loam
+SW 1,50,,,,,
+SW 1,60,SW 1 60 - 70 ,34,66,0,silt loam
+SW 1,70,,,,,
+SW 1,80,SW 1 80 - 90,28,72,0,silt loam
+SW 1,90,SW 1 90 - 100,21,79,0,silt loam
+SW 2,0,SW 2 0 - 10 ,42,55,0,silt loam
+SW 2,10,SW 2 10 - 20 ,38,56,0,silt loam
+SW 2,20,SW 2 20 - 30 ,39,46,7,silt loam
+SW 2,30,SW 2  30 - 40 ,51,49,0,sandy loam
+SW 2,40,SW 2 40 - 50,33,67,0,silt loam
+SW 2,50,SW 2 50 - 60,36,64,0,silt loam
+SW 2,60,SW 2 60 - 70,36,64,0,silt loam
+SW 2,70,SW 2 70 - 80,24,73,2,silt loam
+SW 2,80,SW 2 80 - 90,13,87,0,silt
+SW 2,90,SW 2 90 - 100 ,29,71,0,silt loam

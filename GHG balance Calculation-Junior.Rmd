@@ -1,0 +1,79 @@
+---
+title: "GHG balance calculation"
+author: "Junior"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+# General comment: This is a great start! Move this to an RMarkdown file so you
+can include both text descriptions, code chunks, and output of analysis all in the
+same document. All of my other suggestions are in purple.
+– Gavin
+
+## CALCULATION of CO2e
+https://link.springer.com/article/10.1007/s10021-021-00631-x (Ref.)
+
+## Constants
+seconds per year = 31 536 000 s
+seconds per day = 86 400 s
+
+
+# S/GWP (kg CO2e per kg GHG): CO2=1; CH₄ = 45; N₂O = 270
+
+JWP sum of GHG fluxes: &lt;&lt; mean
+
+# Mean CO2 fluxes 1.23 µmol m-2 s-1. 
+the mean annual co2 flux is:1.23 * 10^-6 
+
+# Mean CH4 fluxes=  -0.87 nmol m-2 s-1. 
+The mean annual flux]
+
+# Mean N2O fluxes= -0.083 nmol m-2 s-1. [This should be the mean or median
+#annual flux]
+
+Equ. To calculate CO2-e
+CO 2 e (gasx)= Annual Mean Flux (gas x ) x S/GWP (gas x )                                
+# Steps of calculation:
+ 1) CO2-e (g-CO2) = (1.23 * 10^-6) umol m-2 s-1 * 44 gCO2 molCO2-1 * 1 kgCO2e
+kgGHG-1
+CO2e= 0.00005412 g m-2 s-1 or 0.00000005412 kg m-2 s-1 or 1.71 kg m-2 y-1
+
+ 2) CO2e (ch4) = (-0.87 * 10^-9 nmol m-2 s-1) * 16 gCh4 molch4-1 * 45 kgCO2e kgGHG-1
+CO2e(ch4) = -0.0000006264 g m-2 s-1 or -0.0000000006264 kg m-2 s-1 or -0.020 kg
+m-2 y-1
+
+ 3) CO2e (n2o)= Flux (gas x ) x S/GWP (gas x )
+ CO2e (n2o) = (-0.083 * 10^-9 nmol m-2 s-1* 44 gN2o moln2o-1 * 270 kgCo2e kgGHG-1
+CO2e (n2o)= -0.000000986 g m-2 s-1 or -0.000000000986 kg m-2 s-1 or -0.031 kg m-2 y-
+1
+CO2e (co2+ch4+n2o) = 1.71 + (-0.020)+ (-0.031) -->  1.659 kg m-2 y-1.
+this is the GHG balance!
+
+# Scale up to JWP area 2 ha or 20 000 m-2
+
+CO2e= (1.659 kg m-2 y-1 * 20 000) --> 33180 kg y-1 or 33.18 t y-1
+

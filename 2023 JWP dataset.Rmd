@@ -1,0 +1,2007 @@
+---
+Data: "2023 JWP data"
+title: "Junior' research"
+output: html_document
+date: "2023-11-22"
+name: "Junior Francois"
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+sessionInfo()
+```
+
+
+```{r load packages}
+library(readr)
+install.packages("tidyverse")
+library(tidyverse)
+library(readxl)
+library(openintro)
+library(tidyr)
+library(dplyr)
+library(lubridate)
+library(tidymodels)
+library(data.table)
+library(patchwork) 
+library(hrbrthemes)
+library(multilevelmod)
+library(lme4)
+library(nlme)
+detach(package:lme4)
+library(parsnip)
+install.packages("rwunderground")
+library(rwunderground)
+install.packages("ggpubr")
+library(ggpubr)
+library(ggsignif)
+install.packages("ggtern")
+library(ggtern)
+library(ggplot2)
+install.packages("gridExtra")
+library(gridExtra)
+install.packages("data2")
+library(data2)
+
+library(phyloseq)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+
+# Import species frequency data at JWP
+
+```{r}
+species_frequency <- read_csv("jwp_species_frequency.csv")
+```
+
+
+```{r}
+species_frequency
+```
+
+# filter most frequent species for year 2005
+
+```{r}
+species_frequency %>% 
+  filter(year==2005)
+```
+
+
+
+## Get precip from weather station wunderground
+
+```{r}
+weatherglv2223<- read_csv("jwp_2022_2023_weather_tidy.csv")
+  
+```
+
+## Average Air temp
+```{r}
+weatherglv2223 <- weatherglv2223 %>% 
+  mutate(avg_airtemp= mean(temp_avg, na.rm=T)) %>% 
+  mutate(date= as.Date(date),
+         yday= yday(date),
+         year = year(date)) 
+```
+
+# Average soil Temp and Moist for each date
+
+```{r}
+full_data2223 %>% 
+  select(date, soil_temp_c, soil_moist_percent) %>% 
+  filter(date== "2022-07-22") %>% 
+  mutate(avg_soil_temp= mean(soil_temp_c, na.rm= T)) %>% 
+  mutate(avg_soil_moist = mean(soil_moist_percent, na.rm= T))
+```
+
+
+## Temp and precip for the year 2022-2023 
+
+```{r}
+#temp <- 
+  weatherglv2223 %>%
+  ggplot(aes(x=yday, y= temp_avg, color = factor(year))) + geom_line()+ theme_classic(base_size = 13)+ theme(legend.position = "right")+ scale_color_manual(values= c("#ce0ef0", "#093991"))+
+  labs(title = "   
+       Temperature ", x = " Day", y = "Temperature (°C)", color= "Year")+ theme(legend.position = "none")
+```
+
+
+```{r}
+#precip <- 
+  weatherglv2223 %>%
+  ggplot(aes(x=yday, y= precip_accum, color = factor(year))) + geom_line()+theme(legend.position = "right")+ scale_color_manual(values= c("#ce0ef0", "#093991"))+ theme_classic(base_size = 13)+
+  labs(title = "   
+       Precipitation ", x = " Day", y = "Precipitation (mm)", color="Year") +theme(legend.position = "right")
+```
+
+# combine temp and precip in one figure
+```{r fig.height=6, fig.width=10}
+grid.arrange(temp, precip, ncol=2)
+
+```
+
+# Air Temp for the sampling period
+
+```{r}
+#air_temp <-
+  weatherglv2223 %>% 
+  filter(date >= "2022-07-09" & date <= "2022-11-02" | date >= "2023-03-23" & date<= "2023-08-18") %>% 
+  ggplot(aes(x=yday, y= temp_avg, color = factor(year)))+ geom_line()+ theme_classic(base_size = 13)+theme(legend.position = "right")+ scale_color_manual(values= c("#ce0ef0", "#093991"))+
+  labs(title = "   
+       Air temperature for the sampling period", x = " Day", y = "Air temperature (°C)", color="Year")+ theme(legend.position= "none")
+```
+
+# Precip for the sampling period of the 
+
+```{r}
+#precipitation <- 
+  weatherglv2223 %>% 
+  filter(date >= "2022-07-09" & date <= "2022-11-02" | date >= "2023-03-23" & date <= "2023-08-18") %>% 
+  ggplot(aes(x=yday, y= precip_accum, color = factor(year))) + geom_line()+ theme(legend.position = "right")+ scale_color_manual(values= c("#ce0ef0", "#093991"))+ theme_classic(base_size = 13)+
+  labs(title = "   
+       Precipitation for the sampling period", x = " Day", y = "Precipitation (mm)", color= "Year")+ theme(legend.position= "none")
+```
+  
+  
+```{r }
+grid.arrange(air_temp, precipitation, ncol=2)
+```
+
+# Avg Soil temp for the sampling period
+  
+```{r}
+#soil_temp <- 
+  full_data2223 %>% 
+   rename(Microtopography= plot) %>% 
+  group_by(Microtopography,date) %>%
+  mutate(yday= yday(date),
+         year= year(date)) %>% 
+  mutate(avg_soil_temp= mean(soil_temp_c, na.rm= T)) %>% 
+  ggplot(aes(x = yday, y = avg_soil_temp, color = Microtopography, shape = factor(year))) + scale_color_manual(values= c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0"))+
+  geom_point(size=3)+
+  theme_classic(base_size = 13)+
+labs(title = "
+     Soil temperature", x = " Day", y = "Soil temperature (°C)",shape= "Year")+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ theme(legend.position = "none")
+``` 
+
+
+# Avg soil moisture for the sampling period
+
+```{r}
+#soil_moist <- 
+  full_data2223 %>% 
+  rename(Microtopography= plot) %>% 
+  mutate(yday= yday(date),
+         year= year(date)) %>% 
+  group_by(Microtopography, date) %>% 
+  mutate(avg_soil_moist= mean(soil_moist_percent, na.rm= T)) %>% 
+ggplot(aes(x = yday, y = avg_soil_moist, color = Microtopography, shape = factor(year))) +
+  geom_point(size=3)+ scale_color_manual(values= c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0"))+
+  # geom_smooth()+
+labs(title = " 
+     Soil moisture", x = "Day", y = " Soil moisture (%)", shape= "Year")+
+  theme_classic(base_size = 13)+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ theme(legend.position= "right")
+```
+ 
+```{r}
+grid.arrange(soil_temp, soil_moist, ncol=2)
+```
+ 
+ 
+ 
+ 
+```{r}
+full_data2223 %>% 
+  rename(Microtopography = plot) %>% 
+  mutate(yday = yday(date),
+         year = year(date)) %>% 
+  group_by(Microtopography, date) %>% 
+  mutate(avg_soil_moist = mean(soil_moist_percent, na.rm = TRUE)) %>% 
+  ggplot(aes(x = yday, y = avg_soil_moist, color = Microtopography), = year) +
+  geom_point(size = 3) +
+  scale_color_manual(values = c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0")) +
+  labs(title = "Soil Moisture",
+       x = "Day", y = "Soil moisture (%)") +
+  theme_classic(base_size = 12) +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = "right")
+```
+ 
+ 
+```{r}
+full_data2223 %>% 
+  rename(Microtopography = plot) %>%
+  group_by(Microtopography) %>%
+  ggplot(aes(x = Microtopography, y = soil_moist_percent , color = Microtopography, fill = Microtopography)) + 
+  geom_violin(alpha = 0.8) +
+  scale_fill_manual(values = c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0")) +
+  scale_color_manual(values = c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0")) +
+  theme_minimal() +
+  labs(
+    title = " c) Soil moisture distribution by microtopographic zones",
+    x = "Microtopographic zones",
+    y = "Soil moisture (%)",
+    fill = "Microtopography",
+    color = "Microtopography"
+  )
+```
+ 
+ 
+```{r fig.height=3, fig.width=10}
+grid.arrange(soil_temp, soil_moist, ncol=2)
+```
+ 
+
+### Gavin's Addition: Moisture Diagnostic Plot (June 20, 2024)
+
+```{r moisture-diagnostic}
+full_data2223 %>% 
+  rename(Microtopography= plot) %>% 
+  mutate(yday= yday(date),
+         year= year(date)) %>% 
+ggplot(aes(x = Microtopography, y = soil_moist_percent)) +
+  geom_boxplot() +
+  geom_jitter()
+```
+
+OK, it looks like there are a few outliers for SW_1. Let's check which dates these are:
+
+```{r}
+full_data2223 %>% 
+  filter(soil_moist_percent < 30 & plot == "SW_1") %>% 
+  pull(date)
+```
+
+The two dates that look odd are 10/19/2022 and 08/02/2023. Let's see if any other than moisture data patterns look odd for these dates:
+
+```{r}
+full_data2223 %>% 
+  filter(date %in% c("2022-10-19") & gas == "CO2") %>% 
+  ggplot(aes(x = plot, y = soil_moist_percent)) +
+  geom_boxplot() + 
+  geom_jitter()
+```
+
+## Read flux data (Method: using iterative functions)
+
+```{r lapply-read}
+files <- list.files("data/final", pattern = "fluxes")
+
+flux_data23 <- lapply( paste0("data/final/", files), read_csv )
+```
+
+# Use of bind_rows() to combine dates
+
+```{r bind-rows-all-data}
+data_fluxes23 <- bind_rows(flux_data23) %>% 
+  unite(plot,ecosystem_name : ecosystem_block, sep = "_", remove = FALSE)
+data_fluxes23
+```
+
+# read soil moisture and temperature data 2023
+
+```{r read-soil-moist-temp}
+soil_moist_temp <- read_csv("data/soil_moist_temp23.csv") %>% 
+  mutate(soil_moist_percent = as.numeric(soil_moist_percent)) %>% 
+  mutate(soil_temp_c = as.numeric(soil_temp_c)) %>% 
+ mutate(date = mdy(date)) %>% 
+  mutate(plant_cover_percent = as.numeric(plant_cover_percent))
+```
+
+
+```{r}
+soil_moist_temp
+```
+
+
+## Join soil moist-temp data 2023 with datafluxes 2023
+
+```{r}
+ final_data_fluxes23 <- data_fluxes23 %>%  
+left_join(soil_moist_temp)
+```
+
+
+
+```{r}
+final_data_fluxes23
+```
+
+## Steps to combine the two datasets 2022 and 2023
+
+# 1) Extract the 2023 final dataset
+
+```{r}
+write_csv(final_data_fluxes23, file = "data/prairie_data2023.csv")
+
+```
+
+# readback 2023 final dataset
+
+```{r}
+  data_23 <-read_csv("data/prairie_data2023.csv")
+ 
+```
+
+
+# 2) Extract 2022 dataset
+
+```{r}
+data_22 <-read_csv("data/prairie_data2022.csv") %>% 
+  mutate(date = mdy(date)) %>% 
+  rename(soil_moist_percent = sensor_soil_moisture_percent) %>% 
+  rename(osoil_moist_percent = oven_soil_moisture_percent) %>% 
+  rename(soil_temp_c = soil_temperature_c)
+```
+
+
+```{r}
+  data_22
+```
+
+# Min and Max soil Temp in 2022
+```{r}
+data_22 %>% 
+  group_by(plot) %>% 
+  summarise(min(soil_temp_c, na.rm = T), max(soil_temp_c, na.rm = T))
+```
+
+# Mean soil moisture
+
+```{r}
+data_22 %>% 
+  group_by(plot) %>% 
+summarise(mean(soil_temp_c, na.rm= T))
+```
+
+#  Min and Max soil moisture in 2022
+
+```{r}
+data_22 %>%
+  group_by(plot) %>% 
+  summarise(min(soil_moist_percent, na.rm = T), max(soil_moist_percent, na.rm = T))
+```
+
+# Mean soil moisture
+
+```{r}
+data_22 %>%
+  group_by(plot) %>% 
+  summarise(mean(soil_moist_percent, na.rm= T))
+```
+
+
+# Min and Max soil Temp in 2023
+
+```{r}
+data_23 %>% 
+  group_by(plot) %>%
+  summarise(min(soil_temp_c, na.rm = T), max(soil_temp_c, na.rm = T))
+```
+
+# mean soil Temp
+
+```{r}
+data_23 %>% 
+  group_by(plot) %>%
+  summarise(mean(soil_temp_c, na.rm = T))
+```
+
+
+# Min and Max soil moisture  in 2023
+
+```{r}
+data_23 %>% 
+  group_by(plot) %>%
+  summarise(min(soil_moist_percent, na.rm = T), max(soil_moist_percent, na.rm = T), mean(soil_moist_percent, na.rm= T))
+```
+
+# Mean soil moisture
+
+```{r}
+data_23 %>% 
+  group_by(plot) %>%
+  summarise( mean(soil_moist_percent, na.rm= T))
+```
+
+
+```{r}
+full_data2223
+```
+
+
+# Spatially average soil moisture (2022-2023)
+
+```{r}
+full_data2223 %>% 
+  group_by(plot) %>% 
+  summarize(mean(soil_moist_percent, na.rm= T))
+```
+
+
+
+```{r}
+full_data2223 %>% 
+  group_by(plot) %>% 
+  summarize(min(soil_moist_percent, na.rm= T), max(soil_moist_percent, na.rm=T))
+```
+
+# Soil temperature
+
+```{r}
+full_data2223 %>% 
+group_by(plot) %>% 
+  summarize(mean(soil_temp_c, na.rm= T))
+```
+
+# create soil temperature data
+
+```{r}
+soil_temp_data <- full_data2223 %>% 
+  select(plot,soil_temp_c, soil_moist_percent, date) %>% 
+  arrange(desc(soil_temp_c))
+
+```
+
+# export table of soil temperature data
+
+```{r}
+write.table(soil_temp_data, file = "export-soil-temp-data.csv", sep = "," )
+```
+
+
+```{r}
+write.table(full_data2223, file = "prairie-data2223.csv", sep = "," )
+
+```
+
+
+```{r}
+full_data2223 %>% 
+ggplot(aes(x= plot, y= soil_moist_percent, na.rm=T))+
+  geom_boxplot() + theme_classic(base_size = 12)+
+  labs(title = "Soil moisture across microtopographic zones",
+       x= "Microtopography",
+       y= "Soil moisture (%)")
+  
+```
+
+
+```{r}
+full_data2223 %>% 
+  filter(soil_moist_percent == 11.9 & plot == "SW_2") %>% 
+  pull(date)
+```
+
+
+## Now join 2022 with 2023 dataset
+
+```{r}
+full_data2223 <-full_join(data_22 ,data_23)
+```
+
+
+```{r}
+full_data2223 <- full_data2223 %>% 
+  mutate(season= case_when(date > "2022-07-09" & date <= "2022-07-22" ~ "Summer",
+                          date > "2022-08-12" & date <= "2022-10-19" ~ "Fall",
+                          date == "2022-11-02" ~ "Winter",
+                          date > "2023-03-22" & date <= "2023-05-18" ~ "Spring",
+                          date > "2023-05-18" & date <= "2023-07-18" ~ "Summer",
+                          date > "2023-08-02" & date <= "2023-08-18" ~ "Fall")) %>% 
+  mutate(gas = case_when( gas == "co2" ~ "CO2",
+                    gas== "ch4" ~ "CH4", 
+                    gas== "n2o" ~ "N2O"))  
+```
+
+
+```{r}
+full_data2223
+```
+
+
+# Check for the distribution of the data
+
+```{r}
+hist(full_data2223$flux)
+```
+
+```{r}
+qqnorm(full_data2223$flux)
+qqline(full_data2223$flux, col = "red")
+```
+
+
+# check the normality for Co2 data
+
+```{r}
+hist(Co2_data2223$flux)
+```
+
+
+```{r}
+qqnorm(Co2_data2223$flux)
+qqline(Co2_data2223$flux, col = "red")
+```
+
+# Transformation of the Co2 data
+
+```{r}
+Co2_data2223$log_flux <- log(Co2_data2223$flux + 1)  # add 1 to avoid log(0)
+hist(Co2_data2223$log_flux)
+```
+
+
+```{r}
+qqnorm(Co2_data2223$log_flux)
+qqline(Co2_data2223$log_flux, col = "red")
+```
+
+# Check for Ch4 data normality
+
+```{r}
+hist(Ch4_data2223$flux)
+```
+
+
+```{r}
+full_data2223 
+```
+
+# Average and SD CO2, CH4, N2O fluxes by plot 2022-2023
+
+```{r}
+Co2_data2223 %>% 
+group_by(plot) %>% 
+  summarise(mean(log_flux, na.rm=T), sd(log_flux, na.rm= T))
+```
+
+# Normal CO2 data 2023
+
+```{r}
+norm_Co2_data23 <- data_23 %>% 
+  filter(gas=="co2")
+```
+
+
+```{r}
+hist(norm_Co2_data23$flux)
+```
+
+
+# Mean and SD CO2 in 2023
+
+```{r}
+norm_Co2_data23 %>% 
+group_by(plot) %>% 
+  summarise(mean(flux, na.rm=T), sd(flux, na.rm= T))
+```
+
+# March 2023 average flux and SD
+
+```{r}
+norm_Co2_data23 %>% 
+  filter(date=="2023-03-22") %>% 
+  summarise(min(flux, na.rm= T), sd(flux, na.rm=T))
+```
+
+# May 2023 average flux and SD
+
+```{r}
+norm_Co2_data23 %>% 
+  filter(date=="2023-05-18") %>% 
+  summarise(min(flux, na.rm= T), sd(flux, na.rm=T))
+```
+
+```{r}
+norm_Co2_data23 %>% 
+  filter(date=="2023-07-06") %>% 
+  summarise(max(flux, na.rm= T), sd(flux, na.rm=T))
+```
+
+# Normal Co2 data 2022
+
+```{r}
+norm_Co2_data22 <- 
+  data_22 %>% 
+  filter(gas=="co2") %>% 
+  mutate(log_flux= log(flux+1))
+```
+
+
+```{r}
+hist(norm_Co2_data22$log_flux)
+```
+
+# Mean and SD CO2 in 2022
+
+```{r}
+norm_Co2_data22 %>% 
+group_by(plot) %>% 
+  summarise(mean(flux, na.rm=T), sd(flux, na.rm= T))
+```
+
+# Mean and SD CO2 in 2022
+```{r}
+norm_Co2_data22 %>% 
+  filter(date=="2022-10-19") %>% 
+ 
+  summarise(min(flux, na.rm= T), sd(flux, na.rm=T))
+```
+
+```{r}
+norm_Co2_data22 %>% 
+  filter(date=="2022-07-09") %>% 
+ 
+  summarise(max(flux, na.rm= T), sd(flux, na.rm=T))
+```
+# SD of all CH4 flux
+
+```{r}
+Ch4_data2223 %>% 
+  summarise(mean(flux, na.rm=T), sd(flux, na.rm=T))
+```
+
+Multiplying the standard deviation by 3 equals to 10.71
+
+# Removal of all CH4 flux vaues more than 10.71 in 2023
+
+```{r}
+norm_ch4_data23 <- data_23 %>% 
+  filter(gas== "ch4") %>% 
+  filter(flux<= 10.71)
+```
+
+```{r}
+hist(norm_ch4_data23$flux)
+```
+
+
+# Average CH4 flux 2022-2023
+
+```{r}
+Ch4_data2223 %>% 
+  filter(flux<= 10.71) %>% 
+  summarise(mean(flux, na.rm= T), sd(flux, na.rm=T))
+```
+
+# Average CH4 flux and SD by plots
+
+```{r}
+Ch4_data2223 %>% 
+  filter(flux<= 10.71) %>% 
+  group_by(plot) %>% 
+  summarise(mean(flux, na.rm= T), sd(flux, na.rm=T))
+```
+
+```{r}
+full_data2223 %>% 
+  filter(gas== "CH4") %>% 
+  filter(flux<= 10.71) %>% 
+  #group_by(plot) %>% 
+  summarise(mean(flux, na.rm= T), sd(flux, na.rm=T))
+```
+
+
+# significance difference in CH4 fluxes between plots
+
+```{r}
+linear_reg() %>%
+set_engine("lm") %>%
+fit(flux ~ plot, data = Ch4_data2223) %>% 
+  tidy()
+```
+
+
+```{r}
+norm_ch4_data22 <- data_22 %>% 
+  filter(gas=="ch4") 
+```
+
+# transform ch4 flux data 2022
+
+```{r}
+norm_ch4_data22 <- 
+  norm_ch4_data22 %>% 
+  mutate(flux_log= log(max(flux) + 1 - flux))
+```
+
+
+```{r}
+hist(norm_ch4_data22$flux_log)
+```
+
+
+# Mean CH4 fluxes and SD in 2022
+
+```{r}
+norm_ch4_data22 %>% 
+  summarise(mean(flux_log, na.rm=T), sd(flux_log, na.rm=T))
+```
+# Transform ch4 flux 2023
+
+```{r}
+norm_ch4_data23 <- data_23 %>% 
+  filter(gas=="ch4")
+```
+
+
+```{r}
+norm_ch4_data23 <- 
+norm_ch4_data23 %>% 
+  mutate(flux_log= log(flux+1))
+```
+
+
+```{r}
+hist(norm_ch4_data23$flux_log)
+```
+
+# Mean CH4 fluxes and SD in 2023
+
+```{r}
+norm_ch4_data23 %>% 
+  summarise(mean(flux_log, na.rm=T), sd(flux_log, na.rm=T))
+```
+
+# New plot with removal of outlier for ch4 fluxes
+
+```{r}
+Ch4_data2223 %>% 
+  filter(flux<=10.71) %>% 
+rename(Microtopography = plot) %>% 
+  group_by(Microtopography, date, gas) %>% 
+  mutate(yday = yday(date),
+         year = year(date), 
+         avg_flux = mean(flux, na.rm = TRUE)) %>%
+  ggplot(aes(x = yday, y = avg_flux, shape = factor (year), color = Microtopography)) +
+  scale_color_manual(values = c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0")) +
+  geom_point(size = 2.5) +
+  facet_wrap(~ factor(gas, levels = c("CO2", "CH4", "N2O")), ncol = 1, scales = "free_y") +
+  labs( 
+       x = "Day", y = expression(" CH"[4]*" flux (nmol  m"^{-2}*" s"^{-1}*")"), shape= "Year") +
+  theme_classic(base_size = 13)
+```
+
+```{r}
+hist(N2o_data2223$flux)
+```
+
+```{r}
+hist(N2o_data2223$log_flux)
+```
+
+
+# SD of all N2O fluxes in 2022-2023
+
+```{r}
+N2o_data2223 %>% 
+  summarise(mean(log_flux, na.rm=T), sd(log_flux, na.rm=T))
+```
+# Normal n2o data flux 2022
+
+```{r}
+nor_n2o_data22 <- data_22 %>% 
+  filter(gas=="n2o")
+```
+
+
+```{r}
+hist(nor_n2o_data22$flux)
+#%>% 
+#mutate(log_flux= (max (flux) + 1 - flux))
+```
+
+
+Multiplying the SD by 3 is equal to 1.44
+
+# Removal of all N2O flux vaues more than 3 in 2022
+
+```{r}
+nor_n2o_data22 %>% 
+  filter(gas== "n2o") %>% 
+  filter(flux<= 1.44)
+```
+
+
+# Mean N2o fluxes 2022-2023
+
+```{r}
+N2o_data2223%>% 
+  filter(flux<= 1.44) %>% 
+  summarise(mean(flux, na.rm=T), sd(flux, na.rm=T))
+```
+
+```{r}
+nor_n2o_data23 <- data_23 %>% 
+  filter(gas=="n2o")
+```
+
+
+```{r}
+hist(nor_n2o_data23$flux)
+```
+
+
+# Mean n2O fluxes in 2022
+
+```{r}
+nor_n2o_data22 %>% 
+  filter(flux<= 1.44) %>% 
+  summarise(mean(flux, na.rm=T), sd(flux, na.rm=T))
+```
+
+
+```{r}
+nor_n2o_data22 %>% 
+  #filter(flux<= 1.44) %>% 
+  group_by(plot) %>% 
+  summarise(mean(flux, na.rm=T), sd(flux, na.rm=T))
+```
+
+# Mean n2o fluxes in 2023
+
+```{r}
+nor_n2o_data23 %>% 
+  filter(flux<= 1.44) %>% 
+  summarise(mean(flux, na.rm=T), sd(flux, na.rm=T))
+```
+
+```{r}
+nor_n2o_data23 %>%  
+  filter(flux<= 1.44) %>% 
+  group_by(plot) %>% 
+  summarise(mean(flux, na.rm=T), sd(flux, na.rm=T))
+```
+
+
+# New plot with removal of outlier for n2o fluxes
+
+```{r}
+N2o_data2223%>% 
+  filter(flux<= 1.44) %>% 
+rename(Microtopography = plot) %>% 
+  group_by(Microtopography, date, gas) %>% 
+  mutate(yday = yday(date),
+         year = year(date), 
+         avg_flux = mean(flux, na.rm = TRUE)) %>%
+  ggplot(aes(x = yday, y = avg_flux, shape = factor (year), color = Microtopography)) +
+  scale_color_manual(values = c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0")) +
+  geom_point(size = 2.5) +
+  facet_wrap(~ factor(gas, levels = c("CO2", "CH4", "N2O")), ncol = 1, scales = "free_y") +
+  labs( 
+       x = "Day", y = expression(" N"[2]*"O flux (nmol  m"^{-2}*" s"^{-1}*")"), shape= "Year") +
+  theme_classic(base_size = 13)+ theme(legend.position= "none")
+```
+# New corrected CO2 fluxes
+
+```{r}
+norm_Co2_data2223 %>%
+rename(Microtopography = plot) %>% 
+  group_by(Microtopography, date, gas) %>% 
+  mutate(yday = yday(date),
+         year = year(date), 
+         avg_flux = mean(log_flux, na.rm = TRUE)) %>%
+  filter(gas=="CO2") %>% 
+  ggplot(aes(x = yday, y = avg_flux, shape = factor(year), color = Microtopography)) +
+  scale_color_manual(values = c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0")) +
+  geom_point(size = 2.5) +
+  facet_wrap(~ factor(gas, levels = c("CO2", "CH4", "N2O")), ncol = 1, scales = "free_y") +
+  labs(title = expression("Temporal greenhouse gas fluxes"), 
+       x = "Day", y = expression("  CO"[2]*" flux (µmol  m"^{-2}*" s"^{-1}*")"), shape= "Year") +
+  theme_classic(base_size = 13)+ theme(legend.position= "none")
+```
+
+Combine all the 3 new plots together in Power point 
+
+# Spatial greenhouse gas fluxes
+
+```{r}
+norm_Co2_data2223 %>% 
+  rename(Microtopography = plot) %>% 
+  ggplot(aes(x = Microtopography, y = log_flux, color = Microtopography, fill = Microtopography)) + 
+  geom_violin(alpha = 0.6) +  # Adding transparency for better visual distinction
+  facet_wrap(~ gas, ncol = 1, scales = "free_y") + 
+  scale_color_manual(values = c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0")) + 
+  scale_fill_manual(values = c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0")) + 
+   labs(title = expression("Spatial greenhouse gas fluxes"), 
+       x = "Microtopographic zones", y = expression(" CO"[2]*"  flux (µmol  m"^{-2}*" s"^{-1}*")")) + 
+  theme_classic(base_size = 13) + 
+  theme(legend.position = "none")
+```
+
+
+```{r}
+Ch4_data2223 %>% 
+  rename(Microtopography = plot) %>% 
+  filter(flux < 10.71) %>% 
+  ggplot(aes(x = Microtopography, y = flux, color = Microtopography, fill = Microtopography)) + 
+  geom_violin(alpha = 0.6) +  # Adding transparency for better visual distinction
+  facet_wrap(~ gas, ncol = 1, scales = "free_y") + 
+  scale_color_manual(values = c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0")) + 
+  scale_fill_manual(values = c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0")) + 
+   labs( 
+       x = "Microtopographic zones", y = expression(" CH"[4]*"  flux (nmol  m"^{-2}*" s"^{-1}*")")) + 
+  theme_classic(base_size = 13) + 
+  theme(legend.position = "none")
+```
+
+
+```{r}
+N2o_data2223%>% 
+  rename(Microtopography = plot) %>% 
+ 
+  filter(flux <= 1.44) %>% 
+  ggplot(aes(x = Microtopography, y = flux, color = Microtopography, fill = Microtopography)) + 
+  geom_violin(alpha = 0.6) +  # Adding transparency for better visual distinction
+  facet_wrap(~ gas, ncol = 1, scales = "free_y") + 
+  scale_color_manual(values = c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0")) + 
+  scale_fill_manual(values = c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0")) + 
+   labs( 
+       x = "Microtopographic zones", y = expression(" N"[2]*"O  flux (nmol  m"^{-2}*" s"^{-1}*")")) + 
+  theme_classic(base_size = 13) + 
+  theme(legend.position = "none")
+
+
+```
+
+
+# Average flux of CO2, Ch4, and N2O 2022/2023 
+
+```{r}
+    norm_Co2_data2223 %>% 
+  summarise(mean(log_flux, na.rm=T), sd(log_flux, na.rm=T))
+```
+
+```{r}
+N2o_data2223 %>% 
+   filter(flux <= 1.44) %>% 
+  summarise(mean(flux, na.rm=T), sd(flux, na.rm=T))
+```
+
+```{r}
+Ch4_data2223 %>% 
+   filter(flux <= 10.71) %>% 
+  summarise(mean(flux, na.rm=T), sd(flux, na.rm=T))
+```
+
+
+# read CN result 2023
+
+```{r}
+cn_result_23 <- read_csv("data/cn_result_23.csv")
+cn_resul_23
+```
+# CN result 2022
+
+```{r}
+cn_result_22 <- read_csv("data/cn_result_22.csv")
+cn_result_22
+```
+
+
+```{r}
+cn_result_22 %>% 
+  ggplot(aes(x= plot, y= `avg_carbon_%`))+ geom_boxplot()+
+  theme_classic(base_size = 9)+
+  labs(title = "Soil carbon 30 cm ", x = " Microtopography", y = "Carbon (%)")
+  cn_result_22 %>% 
+  ggplot(aes(x= plot, y= `avg_nitrogen_ %`))+ geom_boxplot()+
+  theme_classic(base_size = 9)+
+  labs(title = "Soil nitrogen 30 cm ", x = " Microtopographiy", y = "Nitrogen (%)")
+ 
+```
+
+
+```{r}
+lm_carbon <- lm(formula = cn_result_22$`avg_carbon_%` ~ cn_result_22$plot, cn_result_22)
+summary(lm_carbon)
+```
+
+
+```{r}
+lm_nitrogen <- lm(formula = cn_result_22$`avg_nitrogen_ %` ~ cn_result_22$plot, cn_result_22)
+summary(lm_nitrogen)
+```
+
+
+
+# Carbon and nitrogen percent per ecosystem in 2022
+
+```{r fig.height=5, fig.width=6}
+cn_result_22 %>% 
+  ggplot(aes(x= plot, y= `avg_carbon_%`))+ geom_boxplot()+
+  theme_classic(base_size = 9)+
+  labs(title = " a)
+       Soil carbon 30 cm ", x = " Microtopography", y = "Carbon (%)")
+```
+  
+```{r}
+cn_result_22 %>% 
+  ggplot(aes(x= plot, y= `avg_nitrogen_ %`))+ geom_boxplot()+
+  theme_classic(base_size = 9)+
+  labs(title = " b)
+       Soil nitrogen 30 cm ", x = " Microtopographiy", y = "Nitrogen (%)")
+```
+  
+
+# soil carbon % across depth (2023 data)
+
+```{r}
+cn_result_23 %>% 
+  filter(plot == "SW 1" | plot =="SW 2" | plot == "UP 1" | plot == "UP 2") %>% 
+  rename(Microtopography= plot) %>% 
+  ggplot(aes(x = avg_carbon, y = -depth_cm, shape = Microtopography))+
+  geom_point(size= 3)+
+  labs(title = "  Soil carbon 0 -100 cm ", x = " Carbon (%)", y = "Depth (cm)")+
+  theme_classic(base_size = 12)+
+  theme(legend.position= "right")
+```
+
+# Avg carbon percent at 90-100 cm
+
+```{r}
+cn_result_23 %>% 
+  #filter(depth_cm== "90") %>% 
+  summarise(mean(avg_carbon, na.rm=T), max(avg_carbon, na.rm=T))
+```
+# carbon percent value by plots
+ 
+```{r}
+cn_result_23 %>% 
+  group_by(plot) %>% 
+  filter(plot == "SW 1" | plot =="SW 2" | plot == "UP 1" | plot == "UP 2") %>%
+  summarise(min(avg_carbon, na.rm=T), max(avg_carbon, na.rm=T))
+```
+
+
+# soil nitrogen percent across depth (2023 data) 
+
+```{r}
+cn_result_23 %>% 
+  filter(plot == "SW 1" | plot =="SW 2" | plot == "UP 1" | plot == "UP 2") %>% 
+  rename(Microtopography= plot) %>% 
+  ggplot(aes(x = avg_nitrogen, y = -depth_cm, shape = Microtopography))+
+  #scale_color_manual(values= c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0"))+
+  geom_point(size= 3)+
+  labs(title = " Soil nitrogen 0 -100 cm ", x = " Nitrogen (%)", y = "Depth (cm)")+
+  theme_classic(base_size = 12)+
+  theme(legend.position= "right")
+```
+
+
+### Note from Gavin: Thiese pl
+
+```{r}
+linear_reg() %>%
+set_engine("lm") %>%
+fit(avg_carbon ~ depth_cm, data = cn_result_23) %>% 
+  tidy()
+```
+intercept= 2.95 , is the predicted value of carbon % when x=0
+-0.02 is the slope, 
+
+
+```{r}
+linear_reg() %>%
+set_engine("lm") %>%
+fit(avg_nitrogen ~ depth_cm, data = cn_result_23) %>% 
+  tidy()
+```
+
+
+# soil texture analysis 2023
+
+```{r}
+soil_texture23 <- read_csv("data/soil_texture_23.csv")
+soil_texture23
+```
+
+# CODES TO CREATE TEXTURE ANALYSIS FIGURES
+
+```{r}
+---
+title: "Untitled"
+output: html_document
+date: "2024-10-21"
+---
+{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Install and load the required package
+install.packages("ggtern")
+library(ggplot2)
+
+# Example data frame with proportions of sand, silt, clay, and depth
+data <- data.frame(
+  Depth = rep(c("0-10cm", "10-20cm", "20-30cm"), each = 4),
+  Sand = c(60, 70, 80, 85, 55, 65, 75, 78, 50, 60, 70, 72),
+  Silt = c(20, 15, 10, 7, 25, 20, 15, 12, 30, 25, 20, 18),
+  Clay = c(20, 15, 10, 8, 20, 15, 10, 10, 20, 15, 10, 10)
+)
+# Plotting the ternary diagram
+ggtern(data = data, aes(x = Sand, y = Silt, z = Clay, color = Depth)) +
+  geom_point(size = 3) +
+  geom_path() + # To connect the points for each depth profile if needed
+  theme_bw() + 
+  labs(title = "Soil Texture Across Depths", 
+       T = "Sand (%)", L = "Silt (%)", R = "Clay (%)") +
+  scale_color_manual(values = c("0-10cm" = "blue", 
+                                "10-20cm" = "green", 
+                                "20-30cm" = "red")) +
+  theme(legend.position = "right")
+```
+
+
+
+```{r}
+# Sample data frame with soil texture class and depth
+data <- data.frame(
+  Depth = rep(c("0-10cm", "10-20cm", "20-30cm"), each = 4),
+  Texture_Class = c("Sandy Loam", "Loam", "Clay Loam", "Sandy Loam",
+                    "Loam", "Sandy Loam", "Clay Loam", "Clay",
+                    "Clay", "Clay Loam", "Loam", "Sandy Loam"),
+  Proportion = c(40, 30, 20, 10, 50, 30, 15, 5, 60, 20, 15, 5)
+)
+
+# Stacked bar plot
+library(ggplot2)
+
+ggplot(data, aes(x = Depth, y = Proportion, fill = Texture_Class)) +
+  geom_bar(stat = "identity", position = "stack") +
+  theme_minimal() +
+  labs(title = "Soil Texture Class Distribution Across Depths",
+       x = "Soil Depth",
+       y = "Proportion (%)",
+       fill = "Texture Class") +
+  scale_fill_brewer(palette = "Set3") +
+  theme(legend.position = "right") +
+  coord_flip()
+```
+
+
+## JWP SOIL TEXTURE FROM THE PARIO ANALYSIS
+
+
+```{r}
+soil_data_pario <- read_csv("data/soil_texture23.csv") %>%
+  pivot_longer(
+    cols = sand:clay, 
+    names_to = "soil_fraction", 
+    values_to = "percentage", 
+    values_drop_na = TRUE
+  ) %>%
+  mutate(percentage = as.double(percentage) ) %>%  # Ensure 'percentage' is a double
+  print()
+```
+
+# Combine the CN data with soil data
+
+```{r}
+#soil_carbon_data <- 
+full_join(soil_data_pario, cn_result_23)
+```
+
+
+# Soil data pario normalized
+
+```{r}
+#soil_data_pario_norm <- 
+  soil_data_pario %>%
+  group_by(depth_cm) %>%
+  mutate(percentage = percentage / sum(percentage) * 100)
+```
+
+# Plot the normalized data
+# Soil texture classification across depths
+```{r}
+soil_data_pario %>%
+  #group_by(depth_cm) %>%
+  #mutate(percentage = percentage / sum(percentage) * 100) %>%
+  mutate(
+    depth_cm = forcats::fct_relevel(depth_cm, sort(unique(depth_cm)))) %>%
+  ggplot(aes(
+    x = depth_cm,
+    y = percentage,
+    fill = factor(soil_fraction, levels = c("sand", "silt", "clay"))
+  )) +
+  geom_bar(stat = "identity", position = "stack") +
+  facet_wrap(~ plot)+
+  theme_minimal(base_size = 12) + 
+  labs(
+    title = "Vertical distribution of soil texture classes",
+    x = "Soil depth (cm)",
+    y = "Proportion (%)",
+    fill = "Texture"
+  ) + 
+  scale_fill_manual(
+    values = c("sand" = "#ce0ef0", "silt" = "#d2add9", "clay" = "#1c2ed6")
+  ) +
+  theme(legend.position = "right") +
+  coord_flip()
+```
+
+
+# Soil texture distribution by plot
+
+```{r}
+soil_data_pario %>%
+  group_by(plot) %>%
+  mutate(percentage = percentage / sum(percentage) * 100) %>% 
+ggplot(aes(x = plot, y = percentage, fill = factor(soil_fraction, levels = c("sand", "silt", "clay")))) + 
+  geom_bar(stat = "identity", position = "stack") +
+  theme_minimal(base_size = 12) +  
+  labs(
+    title = " Soil texture distribution by microtopographic zones",
+    x = "Microtopography",
+    y = "Proportion (%)",
+    fill = "Soil fraction",
+    color = "Soil fraction"
+  ) +  scale_fill_manual(
+    values = c("sand" = "#ce0ef0", "silt" = "#d2add9", "clay" = "#1c2ed6"))+
+  theme(legend.position = "right")
+```
+
+
+
+```{r}
+# Install and load required package
+install.packages("ggalluvial")
+library(ggalluvial)
+
+# Data frame example for alluvial plot
+data_alluvial <- data.frame(
+  Depth = rep(c("0-10cm", "10-20cm", "20-30cm"), each = 3),
+  Texture_Class = c("Sandy Loam", "Clay Loam", "Loam", 
+                    "Loam", "Sandy Loam", "Clay Loam", 
+                    "Clay", "Clay Loam", "Sandy Loam"),
+  Freq = c(40, 30, 30, 50, 25, 25, 60, 20, 20)
+)
+
+# Plot the alluvial diagram
+ggplot(data_alluvial, aes(axis1 = Depth, axis2 = Texture_Class, y = Freq)) +
+  geom_alluvium(aes(fill = Texture_Class)) +
+  geom_stratum() +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("Depth", "Texture_Class")) +
+  theme_minimal() +
+  labs(title = "Soil Texture Class Transitions Across Depths")
+```
+
+
+
+
+```{r}
+soil_texture23 <- na.omit(soil_texture23)
+```
+
+
+
+
+```{r}
+soil_texture23 %>% 
+  pivot_longer(cols = sand:clay, names_to = c("sand", "silt","clay"), values_to= "proportion", names_sep = c(4,5,6))
+  
+  
+```
+
+
+
+# Soil moisture and temperaturer per plot
+
+```{r}
+full_data2223 %>% 
+ group_by(plot) %>% 
+summarise(mean_soilmoist = mean(soil_moist_percent, na.rm = TRUE))
+```
+
+  
+
+```{r}
+full_data2223 %>% 
+group_by(plot) %>% 
+  summarise(mean_soiltemp = mean(soil_temp_c, na.rm = TRUE))
+```
+
+
+
+```{r}
+soil_moist <- lm(formula = full_data2223$soil_moist_percent ~ full_data2223$plot, data= full_data2223)
+summary(soil_moist)
+```
+
+
+
+```{r}
+soil_temp <- lm(formula = full_data2223$soil_temp_c ~ full_data2223$plot, data= full_data2223)
+summary(soil_temp)
+```
+
+
+
+
+
+```{r}
+#spatial <- 
+  full_data2223 %>% 
+  rename(Microtopography = plot) %>% 
+  mutate(gas = fct_relevel(gas, c("CO2", "CH4", "N2O"))) %>% 
+  ggplot(aes(x = Microtopography, y = flux, color = Microtopography, fill = Microtopography)) + 
+  geom_violin(alpha = 0.6) +  # Adding transparency for better visual distinction
+  facet_wrap(~ gas, ncol = 1, scales = "free_y") + 
+  scale_color_manual(values = c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0")) + 
+  scale_fill_manual(values = c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0")) + 
+   labs(title = expression("Spatial greenhouse gas fluxes"), 
+       x = "Microtopographic zones", y = expression("  Flux (nmol_ m"^{-2}*" s"^{-1}*")    Flux(nmol_m"^{-2}*"s"^{-1}*")  Flux (µmol_ m"^{-2}*" s"^{-1}*")")) + 
+  theme_classic(base_size = 12) + 
+  theme(legend.position = "right")
+```
+
+
+```{r fig.height=5, fig.width=10}
+grid.arrange(Temp, spatial, ncol=2)
+```
+
+# Greenhouse gas fluxes vs soil temperature/moisture
+
+```{r}
+#temp_flux <-
+  full_data2223 %>% 
+  filter(gas=="CO2") %>% 
+  rename(Microtopography = plot) %>% 
+  mutate(gas = fct_relevel(gas, c("CO2", "CH4", "N2O"))) %>% # Relevel gas here
+  group_by(Microtopography, date, gas) %>%
+  mutate(avg_soil_temp = mean(soil_temp_c, na.rm = TRUE)) %>% 
+  ggplot(aes(x = avg_soil_temp, y = flux)) + 
+  geom_point(shape = 19, size = 2, aes(color = Microtopography)) + 
+  geom_smooth(method = "lm") + 
+  scale_color_manual(values = c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0")) +
+  facet_wrap(~ gas, ncol = 1, scales = "free_y") +
+  labs(title = expression("Soil temperature effect on GHGs fluxes"), 
+       x = "Soil temperature (°C)", y = expression("  CO"[2]*" flux (µmol  m"^{-2}*" s"^{-1}*")")) +
+  theme_classic(base_size = 13) +
+  stat_regline_equation(size = 3) +
+  stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "*`,`~")), label.x.npc = "center", size = 3) +
+  theme(legend.position = "none")      
+```
+
+
+```{r}
+full_data2223 %>% 
+  filter(gas=="CH4") %>% 
+  rename(Microtopography = plot) %>% 
+  mutate(gas = fct_relevel(gas, c("CO2", "CH4", "N2O"))) %>% # Relevel gas here
+  group_by(Microtopography, date, gas) %>%
+  mutate(avg_soil_temp = mean(soil_temp_c, na.rm = TRUE)) %>% 
+  ggplot(aes(x = avg_soil_temp, y = flux)) + 
+  geom_point(shape = 19, size = 2, aes(color = Microtopography)) + 
+  geom_smooth(method = "lm") + 
+  scale_color_manual(values = c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0")) +
+  facet_wrap(~ gas, ncol = 1, scales = "free_y") +
+  labs( 
+       x = "Soil temperature (°C)", y = expression("  CH"[4]*" flux (nmol  m"^{-2}*" s"^{-1}*")")) +
+  theme_classic(base_size = 13) +
+  stat_regline_equation(size = 3) +
+  stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "*`,`~")), label.x.npc = "center", size = 3) +
+  theme(legend.position = "none")   
+```
+
+
+```{r}
+full_data2223 %>% 
+  filter(gas=="N2O") %>% 
+  rename(Microtopography = plot) %>% 
+  mutate(gas = fct_relevel(gas, c("CO2", "CH4", "N2O"))) %>% # Relevel gas here
+  group_by(Microtopography, date, gas) %>%
+  mutate(avg_soil_temp = mean(soil_temp_c, na.rm = TRUE)) %>% 
+  ggplot(aes(x = avg_soil_temp, y = flux)) + 
+  geom_point(shape = 19, size = 2, aes(color = Microtopography)) + 
+  geom_smooth(method = "lm") + 
+  scale_color_manual(values = c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0")) +
+  facet_wrap(~ gas, ncol = 1, scales = "free_y") +
+  labs( 
+       x = "Soil temperature (°C)", y = expression("  N"[2]*"O flux (nmol  m"^{-2}*" s"^{-1}*")")) +
+  theme_classic(base_size = 13) +
+  stat_regline_equation(size = 3) +
+  stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "*`,`~")), label.x.npc = "center", size = 3) +
+  theme(legend.position = "none")   
+```
+
+
+
+# Greenhouse gas fluxes vs soil moisture
+
+```{r}
+#moist_flux <- 
+  full_data2223 %>% 
+  filter(gas=="CO2") %>% 
+  rename(Microtopography= plot) %>% 
+  mutate(gas = fct_relevel(gas, c("CO2", "CH4", "N2O"))) %>%
+  group_by(Microtopography, date) %>% 
+  mutate(avg_soil_moist= mean(soil_moist_percent, na.rm= T, gas= fct_relevel(gas, c("CO2", "CH4", "N2O")))) %>% 
+  ggplot(aes(x = avg_soil_moist, y= flux))+ geom_smooth(method="lm")+ geom_point(shape=19, size= 2, aes(color= Microtopography))+ scale_color_manual(values= c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0"))+
+facet_wrap(~ gas, ncol=1, scales= "free_y")+
+  labs(title = expression("Soil moisture effect on GHGs fluxes"), 
+       x = "Soil moisture (%)", y = expression("  CO"[2]*" flux (µmol  m"^{-2}*" s"^{-1}*")"))+
+  theme_classic(base_size = 13)+
+  stat_regline_equation(size=3)+  theme(legend.position = "none")+
+  stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "*`,`~", parse = TRUE)),
+           label.x.npc = "center", size=3)
+```
+
+
+```{r}
+full_data2223 %>% 
+  filter(gas=="CH4") %>% 
+  rename(Microtopography= plot) %>% 
+  mutate(gas = fct_relevel(gas, c("CO2", "CH4", "N2O"))) %>%
+  group_by(Microtopography, date) %>% 
+  mutate(avg_soil_moist= mean(soil_moist_percent, na.rm= T, gas= fct_relevel(gas, c("CO2", "CH4", "N2O")))) %>% 
+  ggplot(aes(x = avg_soil_moist, y= flux))+ geom_smooth(method="lm")+ geom_point(shape=19, size= 2, aes(color= Microtopography))+ scale_color_manual(values= c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0"))+
+facet_wrap(~ gas, ncol=1, scales= "free_y")+
+  labs(
+       x = "Soil moisture (%)", y = expression("  CH"[4]*" flux (nmol  m"^{-2}*" s"^{-1}*")"))+
+  theme_classic(base_size = 13)+
+  stat_regline_equation(size=3)+  theme(legend.position = "right")+
+  stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "*`,`~", parse = TRUE)),
+           label.x.npc = "center", size=3)
+```
+
+
+```{r}
+full_data2223 %>% 
+  filter(gas=="N2O") %>% 
+  rename(Microtopography= plot) %>% 
+  mutate(gas = fct_relevel(gas, c("CO2", "CH4", "N2O"))) %>%
+  group_by(Microtopography, date) %>% 
+  mutate(avg_soil_moist= mean(soil_moist_percent, na.rm= T, gas= fct_relevel(gas, c("CO2", "CH4", "N2O")))) %>% 
+  ggplot(aes(x = avg_soil_moist, y= flux))+ geom_smooth(method="lm")+ geom_point(shape=19, size= 2, aes(color= Microtopography))+ scale_color_manual(values= c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0"))+
+facet_wrap(~ gas, ncol=1, scales= "free_y")+
+  labs(
+       x = "Soil moisture (%)", y = expression("  N"[2]*"O flux (nmol  m"^{-2}*" s"^{-1}*")"))+
+  theme_classic(base_size = 13)+
+  stat_regline_equation(size=3)+  theme(legend.position = "none")+
+  stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "*`,`~", parse = TRUE)),
+           label.x.npc = "center", size=3)
+```
+
+
+
+```{r fig.height=5, fig.width=10}
+grid.arrange(temp_flux, moist_flux, ncol=2)
+```
+
+
+```{r}
+
+
+data_22 %>% 
+  filter(gas=="co2") %>% 
+  filter(flux < "0.5") %>% 
+  pull(date)
+```
+
+
+```{r}
+data_22 %>% 
+  filter(gas=="co2") %>% 
+  select(flux, date) %>% 
+  arrange(desc(flux))
+  
+```
+
+
+```{r}
+data_23 %>% 
+  filter(gas=="co2") %>% 
+  select(flux, date) %>% 
+  arrange(desc(flux))
+```
+
+# The month with emission of methane in 2023
+
+```{r}
+data_23 %>% 
+  filter(gas=="ch4") %>% 
+  select(flux, date) %>% 
+  arrange(desc(flux)) %>% 
+  ggplot(aes(x= date, y= flux))+geom_point()
+```
+
+# Create new Co2 data for linear model
+
+```{r}
+CO2_data <- norm_Co2_data2223 %>% 
+mutate(yday= yday(date),
+         year= year(date))
+```
+
+
+## Linear model of Co2 flux vs microtopography and factor (year)
+
+```{r}
+linear_reg() %>%
+fit(flux ~ plot + factor(year), CO2_data)  %>% 
+  tidy() 
+```
+
+
+```{r}
+flux_co2_lm <- lm(flux ~ plot + factor(year), data = CO2_data)
+summary(flux_co2_lm)
+```
+To find the real CO2 flux values, add intercept to estimate value of each
+
+# Linear model of Ch4 flux vs microtopography and year
+
+```{r}
+CH4_data <- 
+  Ch4_data2223 %>%
+  filter(flux< 10.71) %>% 
+mutate(yday= yday(date),
+         year= year(date))
+```
+
+
+
+```{r}
+flux_ch4_lm <- lm(flux ~ plot + factor(year), data = CH4_data)
+summary(flux_ch4_lm)
+```
+
+# Linear model of N2o flux vs microtopography and year
+
+```{r}
+N2o_data <- N2o_data2223%>% 
+mutate(yday= yday(date),
+         year= year(date))
+```
+
+
+```{r}
+flux_n2o_lm <- lm(flux ~ plot + factor(year), data = N2o_data)
+summary(flux_n2o_lm)
+```
+
+
+# Create co2 data
+
+```{r}
+CO2_data <- full_data2223 %>% 
+  filter(gas == "CO2")
+```
+
+
+```{r}
+Ch4_data <- full_data2223 %>% 
+  filter(gas == "CH4")
+```
+
+
+```{r}
+N2o_data <- full_data2223 %>% 
+  filter(gas =="N2O")
+```
+
+# 2022 soil Temp across plots
+
+```{r}
+data_22 %>% 
+  group_by(plot) %>% 
+  summarise(min_temp = min(soil_temp_c, na.rm = T),
+            mean_temp = mean(soil_temp_c, na.rm = T),
+            median_temp = median(soil_temp_c, na.rm = T),
+            max_temp = max(soil_temp_c, na.rm = T),
+            std_dev= sd(soil_temp_c, na.rm=T),
+            total_temp = sum(soil_temp_c, na.rm = T))
+```
+
+# 2022 soil moisture across plots
+
+```{r}
+data_22 %>% 
+  group_by(plot) %>% 
+  summarise(min_soilmoist = min(soil_moist_percent, na.rm = T),
+            mean_smoist = mean(soil_moist_percent, na.rm = T),
+            median_smoist = median(soil_moist_percent, na.rm = T),
+            max_smoist = max(soil_moist_percent, na.rm = T),
+            total_smoist = sum(soil_moist_percent, na.rm = T)) 
+```
+
+# 2023 soil Moisture across plots
+
+```{r}
+data_23 %>% 
+  group_by(plot) %>% 
+  summarise(min_soilmoist = min(soil_moist_percent, na.rm = T),
+            mean_smoist = mean(soil_moist_percent, na.rm = T),
+            median_smoist = median(soil_moist_percent, na.rm = T),
+            max_smoist = max(soil_moist_percent, na.rm = T),
+            total_smoist = sum(soil_moist_percent, na.rm = T))
+```
+
+# 2023 soil Temp across plots
+
+```{r}
+data_23 %>% 
+  group_by(plot) %>% 
+  summarise(min_temp = min(soil_temp_c, na.rm = T),
+            mean_temp = mean(soil_temp_c, na.rm = T),
+            median_temp = median(soil_temp_c, na.rm = T),
+            max_temp = max(soil_temp_c, na.rm = T),
+            total_temp = sum(soil_temp_c, na.rm = T))
+```
+
+
+# Soil temperature accross plot 2022-23
+
+```{r}
+full_data2223 %>% 
+  group_by(plot) %>% 
+  summarise(min_temp = min(soil_temp_c, na.rm = T),
+            mean_temp = mean(soil_temp_c, na.rm = T),
+            median_temp = median(soil_temp_c, na.rm = T),
+            max_temp = max(soil_temp_c, na.rm = T),
+            total_temp = sum(soil_temp_c, na.rm = T))
+```
+
+
+# Soil moisture accross plot 2022-23
+
+```{r}
+full_data2223%>% 
+  group_by(plot) %>% 
+  summarise(min_soilmoist = min(soil_moist_percent, na.rm = T),
+            mean_smoist = mean(soil_moist_percent, na.rm = T),
+            median_smoist = median(soil_moist_percent, na.rm = T),
+            max_smoist = max(soil_moist_percent, na.rm = T),
+            total_smoist = sum(soil_moist_percent, na.rm = T))
+```
+
+
+# CO2 flux summary stat in 2022
+ 
+```{r summary-stats-of-co2-flux}
+data_22%>%
+  filter(gas == "co2") %>% 
+  group_by(plot) %>% 
+  summarise(min_flux = min(flux, na.rm = T),
+            mean_flux = mean(flux, na.rm = T),
+            median_flux = median(flux, na.rm = T),
+            max_flux = max(flux, na.rm = T),
+            total_flux = sum(flux, na.rm = T),
+            stan_devflux= sd(flux, na.rm=T))
+```
+ 
+# CO2 flux summary stat per plot with full dataset 2022-23
+ 
+```{r summary-stats-of-co2-flux}
+ Co2_data2223%>% 
+  group_by(plot) %>% 
+  summarise(min_flux = min(flux, na.rm = T),
+            mean_flux = mean(flux, na.rm = T),
+            median_flux = median(flux, na.rm = T),
+            max_flux = max(flux, na.rm = T),
+            total_flux = sum(flux, na.rm = T))
+```
+
+
+# CO2 flux summary stat in 2023
+ 
+```{r summary-stats-of-co2-flux}
+data_23%>%
+  filter(gas == "co2") %>% 
+  group_by(plot) %>% 
+  summarise(min_flux = min(flux, na.rm = T),
+            mean_flux = mean(flux, na.rm = T),
+            median_flux = median(flux, na.rm = T),
+            max_flux = max(flux, na.rm = T),
+            total_flux = sum(flux, na.rm = T),
+            stan_devflux= sd(flux, na.rm=T))
+```
+
+
+# CO2 flux summary stat in 2023 per plot
+
+```{r summary-stats-of-co2-flux}
+data_23%>%
+  filter(gas == "co2") %>% 
+  group_by(plot) %>% 
+  summarise(min_flux = min(flux, na.rm = T),
+            mean_flux = mean(flux, na.rm = T),
+            median_flux = median(flux, na.rm = T),
+            max_flux = max(flux, na.rm = T),
+            total_flux = sum(flux, na.rm = T))
+```
+
+
+# Ch4 flux summary stat in 2022
+
+```{r summary-stats-of-co2-flux}
+data_22 %>% 
+  filter(gas=="ch4") %>% 
+  #group_by(plot) %>% 
+  summarise(min_flux = min(flux, na.rm = T),
+            mean_flux = mean(flux, na.rm = T),
+            median_flux = median(flux, na.rm = T),
+            max_flux = max(flux, na.rm = T),
+            total_flux = sum(flux, na.rm = T))
+```
+
+# Ch4 flux summary stat per plot for full dataset 2022-23
+
+```{r summary-stats-of-co2-flux}
+Ch4_data2223 %>% 
+  group_by(plot) %>% 
+  summarise(min_flux = min(flux, na.rm = T),
+            mean_flux = mean(flux, na.rm = T),
+            median_flux = median(flux, na.rm = T),
+            max_flux = max(flux, na.rm = T),
+            total_flux = sum(flux, na.rm = T))
+```
+
+# Ch4 flux summary stat in 2023
+
+```{r summary-stats-of-co2-flux}
+data_23 %>% 
+  filter(gas=="ch4") %>% 
+  #group_by(plot) %>% 
+  summarise(min_flux = min(flux, na.rm = T),
+            mean_flux = mean(flux, na.rm = T),
+            median_flux = median(flux, na.rm = T),
+            max_flux = max(flux, na.rm = T),
+            total_flux = sum(flux, na.rm = T))
+```
+
+# Ch4 flux summary stat in 2023 per plot
+
+```{r summary-stats-of-co2-flux}
+data_23 %>% 
+  filter(gas=="ch4") %>% 
+  group_by(plot) %>% 
+  summarise(min_flux = min(flux, na.rm = T),
+            mean_flux = mean(flux, na.rm = T),
+            median_flux = median(flux, na.rm = T),
+            max_flux = max(flux, na.rm = T),
+            total_flux = sum(flux, na.rm = T),
+            stand_devflx= sd(flux, na.rm=T))
+```
+
+
+# N2o flux summary stat 2022
+
+```{r summary-stats-of-co2-flux}
+data_22 %>% 
+  filter(gas=="n2o") %>% 
+  #group_by(plot) %>% 
+  summarise(min_flux = min(flux, na.rm = T),
+            mean_flux = mean(flux, na.rm = T),
+            median_flux = median(flux, na.rm = T),
+            max_flux = max(flux, na.rm = T),
+            total_flux = sum(flux, na.rm = T))
+```
+
+# N2o flux summary stat per plot for full dataset 2022-23
+
+```{r summary-stats-of-co2-flux}
+N2o_data2223 %>% 
+  group_by(plot) %>% 
+  summarise(min_flux = min(flux, na.rm = T),
+            mean_flux = mean(flux, na.rm = T),
+            median_flux = median(flux, na.rm = T),
+            max_flux = max(flux, na.rm = T),
+            total_flux = sum(flux, na.rm = T))
+```
+
+
+# N2o flux summary stat 2023 per plot
+
+```{r summary-stats-of-co2-flux}
+data_23 %>% 
+  filter(gas=="n2o") %>% 
+  group_by(plot) %>% 
+  summarise(min_flux = min(flux, na.rm = T),
+            mean_flux = mean(flux, na.rm = T),
+            median_flux = median(flux, na.rm = T),
+            max_flux = max(flux, na.rm = T),
+            total_flux = sum(flux, na.rm = T))
+```
+
+## Linear mixed-effects model between blocks for CH4
+
+```{r}
+lme_spec <- 
+  linear_reg() %>% 
+  set_engine("lme", random = ~ 1 | ecosystem_block)   
+
+  lme_fit <- lme_spec %>% 
+    fit(flux ~ ecosystem_name, data = Ch4_data %>% filter(!is.na(flux)))
+lme_fit
+```
+
+
+# Mixed and random effects
+
+```{r}
+lme_spec <- 
+  linear_reg() %>% 
+  set_engine("lme", random = ~ 1 | ecosystem_block)   
+
+  lme_fit <- lme_spec %>% 
+    fit(flux ~ ecosystem_name, data = N2o_data %>% filter(!is.na(flux)))
+lme_fit
+```
+
+# Doing Tukey's test for difference in co2 flux between plots 
+
+
+```{r}
+plot.lm <- lm(flux ~ plot, data = CO2_data)
+plot.av <- aov(plot.lm)
+summary(plot.av)
+```
+
+Since the p-value is less than 0.05 ( 0.000322) that means there are differences in the mean of the groups.
+
+```{r}
+tukey.test <- TukeyHSD(plot.av)
+tukey.test
+```
+
+There is a significance difference in mean co2 flux between Up1-SW1 and UP1-UP2
+
+# Doing Tukey's test for difference in ch4 flux between plots
+
+```{r}
+plot.lm <- lm(flux ~ plot, data = Ch4_data)
+plot.av <- aov(plot.lm)
+summary(plot.av)
+```
+
+```{r}
+tukey.test <- TukeyHSD(plot.av)
+tukey.test
+```
+There is a significant difference in mean ch4 uptake between SW1-UP2
+
+# Significant effect between plots in n2o fluxes
+
+```{r}
+plot.lm <- lm(flux ~ plot, data = N2o_data)
+plot.av <- aov(plot.lm)
+summary(plot.av)
+```
+
+# Doing Tukey's test for difference in n2o flux between plots
+
+```{r}
+tukey.test <- TukeyHSD(plot.av)
+tukey.test
+```
+There is no significance difference in mean n2o flux between plots
+
+# Ghg fluxes and soil moisture
+
+```{r}
+full_data2223 %>% 
+  rename(Microtopography= plot) %>% 
+  ggplot(aes(x = soil_moist_percent, y= flux))+ geom_smooth()+ geom_point(shape=19, aes(color= Microtopography))+ 
+facet_wrap(~ gas, ncol=1, scales= "free_y")+
+  labs(title = expression("b)    Soil moisture effect on GHGs fluxes"), 
+       x = "Soil moisture (%)", y = expression("         Flux (nmol_m"^{-2}*" s"^{-1}*")                        Flux (µmol_m"^{-2}*"s"^{-1}*")          
+                                   Flux (nmol_ m"^{-2}*" s"^{-1}*")"))+
+  theme_classic(base_size = 7)+
+  stat_regline_equation(size=2)+
+  stat_cor(aes(label = paste(..rr.label.., ..p.label.., sep = "*`,`~", parse = TRUE)),
+           label.x.npc = "center", size=2)
+```
+
+
+# Modeling effect of soil Temp and microtopograhic zone on CO2 flux
+
+```{r}
+regression_soil_temp <- lm(formula=CO2_data$flux ~ CO2_data$soil_temp_c * CO2_data$plot ,CO2_data)
+summary(regression_soil_temp)
+```
+
+Soil temperature has a significant effect on soil co2 flux 
+
+
+# Modeling effect of soil Temp and Moist on Ch4 flux
+
+```{r}
+regression_soil_temp <- lm(formula=Ch4_data$flux ~ Ch4_data$soil_temp_c * Ch4_data$soil_moist_percent ,Ch4_data)
+summary(regression_soil_temp)
+```
+
+# Modeling effect of soil Temp and Moist on N2O flux
+
+```{r}
+regression_soil_temp <- lm(formula=N2o_data$flux ~ N2o_data$soil_temp_c * N2o_data$soil_moist_percent ,N2o_data)
+summary(regression_soil_temp)
+```
+
+
+## Multiple linear regressions with GHG flux
+
+```{r}
+ linear_reg() %>%
+fit(flux ~ soil_temp_c + soil_moist_percent + plant_cover_percent + plant_biomass_g, CO2_data)  %>% 
+  tidy() 
+```
+
+```{r}
+linear_reg() %>%
+fit(flux ~ soil_temp_c + soil_moist_percent + plant_cover_percent+ plant_biomass_g, Ch4_data)  %>% 
+  tidy() 
+```
+
+```{r}
+linear_reg() %>%
+fit(flux ~ soil_temp_c + soil_moist_percent + plant_cover_percent+ plant_biomass_g, N2o_data)  %>% 
+  tidy() 
+```
+
+
+# create dataset of CO2 flux for 2022-23
+
+```{r}
+Co2_data2223 <- full_data2223 %>% 
+  filter(gas== "CO2") 
+  
+```
+
+# create dataset of CH4 flux for 2022-23
+
+```{r}
+Ch4_data2223 <- full_data2223 %>% 
+  filter(gas== "CH4") 
+  
+```
+
+
+# create dataset of N2O flux for 2022-23
+
+```{r}
+N2o_data2223 <- full_data2223 %>% 
+  filter(gas== "N2O") 
+  
+```
+
+# Linear regression model for CO2 flux and microtopography 2022-2023
+
+```{r}
+linear_reg() %>%
+fit(flux ~ plot, Co2_data2223 )  %>% 
+  tidy() 
+```
+
+# CO2 flux significance in 2023 (linear model)
+
+```{r}
+linear_reg() %>% 
+  fit(flux ~ plot, data_23)  %>% 
+  tidy() 
+```
+
+# CO2 flux significance in 2022 (linear model)
+
+```{r}
+linear_reg() %>% 
+  fit(flux ~ plot, data_22)  %>% 
+  tidy() 
+```
+
+

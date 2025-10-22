@@ -1,0 +1,211 @@
+---
+title: "Gas Fluxes: GC Peak Height Extraction"
+author: "Junior"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Purpose: Process GC data to get soil chamber GHG fluxes from JWP
+
+Data:
+1. Find data
+  - .txt files within the directory
+
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(janitor)
+library(stringi)
+library(broom)
+library(reshape2)
+```
+
+get all possible gc run dates
+
+```{r get-gc-run-dates}
+list.files("../data/gc-raw/JWP 2023/")
+```
+
+list the .txt files to read from the second date `5.18.23`
+
+```{r list-files}
+files <- list.files("../data/gc-raw/JWP 2023/3.22.23", pattern = ".txt")
+length(files)
+```
+
+get the sample log
+
+**To get the sample log I need to export a subset of the full .xlsx sample log data as a .csv file**
+
+```{r read-sample-log}
+sample_log <- read_csv("../data/gc-raw/JWP 2023/3.22.23/sample_log.csv", na = c("N/a", "<NA>")) %>% 
+  janitor::clean_names() %>% 
+  mutate(date_collected = mdy(substr(filename, 1, 6)),
+         gc_run_date = mdy("052323")) %>% 
+  mutate(row = as.numeric(substr(filename,8,10)))
+
+glimpse(sample_log)
+```
+
+read in gc files
+
+```{r read-gc-files, output = F, echo = F}
+data <- lapply(paste0("../data/gc-raw/JWP 2023/3.22.23/", files), read_fwf)
+data[[6]]
+```
+
+get CO2 peak heights
+
+```{r co2-heights}
+co2_height_1 <- c()
+co2_height_2 <- c()
+co2_height_3 <- c()
+for(i in 1:length(files)){
+  co2_height_1 <- as.numeric(append(co2_height_1, strsplit(data[[i]][84,]$X1, "\t")[[1]][6]))
+  co2_height_2 <- as.numeric(append(co2_height_2, strsplit(data[[i]][84,]$X1, "\t")[[1]][6]))
+  co2_height_3 <- as.numeric(append(co2_height_3, strsplit(data[[i]][85,]$X1, "\t")[[1]][6])) 
+}
+
+co2_height <- bind_cols(co2_height_1, co2_height_2, co2_height_3) %>% 
+  rename("col1" = `...1`,
+         "col2" = `...2`,
+         "col3" = `...3`) %>% 
+  mutate(col1 = ifelse(col1 < 100000, NA, col1),
+         col2 = ifelse(col2 < 950000 | col2 > 105000, NA, col2),
+         col3 = ifelse(col3 < 100000, NA, col3),
+         co2_height = coalesce(col1, col2, col3)) %>% 
+  pull(co2_height)
+co2_height
+```
+
+
+```{r ch4-heights}
+ch4_height_1 <- c()
+ch4_height_2 <- c()
+ch4_height_3 <- c()
+for(i in 1:length(files)){
+  ch4_height_1 <- as.numeric(append(ch4_height_1, strsplit(data[[i]][83,]$X1, "\t")[[1]][6]))
+  ch4_height_2 <- as.numeric(append(ch4_height_2, strsplit(data[[i]][83,]$X1, "\t")[[1]][6]))
+  ch4_height_3 <- as.numeric(append(ch4_height_3, strsplit(data[[i]][84,]$X1, "\t")[[1]][6]))
+}
+
+ch4_height <- bind_cols(ch4_height_1, ch4_height_2, ch4_height_3) %>% 
+  rename("col1" = `...1`,
+         "col2" = `...2`,
+         "col3" = `...3`) %>% 
+  mutate(col1 = ifelse(col1 < 1000 | col1 > 10000, NA, col1),
+         col2 = ifelse(col2 < 9500 | col2 > 11500, NA, col2),
+         col3 = ifelse(col3 < 1000 | col3 > 10000, NA, col3)) %>% 
+  mutate(ch4_height = coalesce(col1, col2, col3)) %>% 
+  pull(ch4_height)
+ch4_height
+```
+
+```{r n2o-heigts}
+n2o_height_2 <- c()
+n2o_height_3 <- c()
+n2o_height_4 <- c()
+n2o_height_5 <- c()
+for(i in 1:length(files)){
+    n2o_height_2 <- as.numeric(append(n2o_height_2, strsplit(data[[i]][93,]$X1, "\t")[[1]][6]))
+    n2o_height_3 <- as.numeric(append(n2o_height_3, strsplit(data[[i]][94,]$X1, "\t")[[1]][6]))
+    n2o_height_4 <- as.numeric(append(n2o_height_4, strsplit(data[[i]][95,]$X1, "\t")[[1]][6]))
+    n2o_height_5 <- as.numeric(append(n2o_height_5, strsplit(data[[i]][96,]$X1, "\t")[[1]][6]))
+
+}
+
+n2o_height <- bind_cols(n2o_height_2, n2o_height_3, n2o_height_4, n2o_height_5) %>% 
+  rename("col1" = `...1`,
+         "col2" = `...2`,
+         "col3" = `...3`,
+         "col4" = `...4`) %>% 
+  mutate(col1 = ifelse(col1 < 400, NA, col1),
+         col2 = ifelse(col2 < 400, NA, col2),
+         col3 = ifelse(col3 < 400, NA, col3),
+         col4 = ifelse(col4 < 400, NA, col4)) %>% 
+  mutate(n2o_height = coalesce(col1, col2, col3, col4)) %>% 
+  pull(n2o_height)
+n2o_height
+```
+
+bind peak heights into a data frame
+
+```{r}
+peak_heights <- bind_cols(1:length(co2_height), co2_height, ch4_height, n2o_height) %>% 
+  rename("row" = `...1`, "co2_height" = `...2`, "ch4_height" = `...3`, "n2o_height" = `...4`)
+peak_heights
+```
+
+bind sample log to peak heights
+
+```{r}
+gc_data_tidy <- left_join(peak_heights, sample_log, by = "row") %>% 
+  mutate(chamber = ifelse(is.na(chamber), "STD", chamber)) %>% 
+  select(row, date_collected, timepoint, gc_run_date, filename, chamber, 2 ,3, 4)
+gc_data_tidy
+```
+
+```{r}
+write_csv(gc_data_tidy, "../data/tidy/230322/230322_gc_peak_heights.csv")
+```
+
+## Re-read in tidy data
+
+```{r}
+gc_data_tidy <- read_csv("../data/tidy/230322/230322_gc_peak_heights.csv") %>% 
+  mutate(timepoint= substr(timepoint, 2,2)) %>% 
+  mutate(timepoint = as.numeric(timepoint))
+```
+```{r}
+glimpse(gc_data_tidy)
+```
+
+
+get std stats across all runs
+
+```{r}
+std_heights <- gc_data_tidy %>% 
+  filter(chamber == "STD" & !is.na(gc_run_date) & n2o_height > 10000 & n2o_height < 15000,
+         row != 1) %>% 
+  group_by(gc_run_date) %>% 
+  summarize(mean_co2_height = mean(co2_height, na.rm = T),
+            mean_ch4_height = mean(ch4_height, na.rm = T),
+            mean_n2o_height = mean(n2o_height, na.rm = T),
+            
+            co2_precision = sd(co2_height, na.rm = T)/mean_co2_height*100,
+            ch4_precision = sd(ch4_height, na.rm = T)/mean_ch4_height*100,
+            n2o_precision = sd(n2o_height, na.rm = T)/mean_n2o_height*100) 
+std_heights
+```
+
+combine std heights with unknowns
+
+```{r}
+unknown_std_heights <- gc_data_tidy %>% 
+  filter(chamber != "STD") %>% 
+  left_join(std_heights, by = "gc_run_date")
+unknown_std_heights
+```
+
+calculate ghg in ppm
+
+```{r}
+ghg_ppm <- unknown_std_heights %>% 
+  mutate(co2_ppm = co2_height * (998/mean_co2_height),
+         ch4_ppm = ch4_height * (10.2/mean_ch4_height),
+         n2o_ppm = n2o_height * (1/mean_n2o_height)) 
+ghg_ppm
+```
+
+write data
+
+```{r}
+write_csv(ghg_ppm, "../data/tidy/230322/230322_ghg_ppm.csv")
+```
+
+
