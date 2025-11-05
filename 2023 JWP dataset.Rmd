@@ -20,7 +20,6 @@ required_packages <- c(
   "tidymodels",
   "data.table",
   "patchwork",
-  "hrbrthemes",
   "multilevelmod",
   "nlme",
   "parsnip",
@@ -28,9 +27,8 @@ required_packages <- c(
   "ggpubr",
   "ggsignif",
   "ggtern",
-  "gridExtra",
-  "data2",
-  "pyhloseq"
+  "gridExtra"
+  # "pyhloseq"
 )
 
 ## Create function to identify and install missing packages
@@ -58,7 +56,6 @@ library(lubridate)
 library(tidymodels)
 library(data.table)
 library(patchwork) 
-library(hrbrthemes)
 library(multilevelmod)
 library(nlme)
 library(parsnip)
@@ -68,37 +65,86 @@ library(ggsignif)
 library(ggtern)
 library(ggplot2)
 library(gridExtra)
-library(data2)
-library(phyloseq)
-```
-
-# Get Data
-
-# Import species frequency data at JWP
-
-```{r}
-species_frequency <- read_csv("jwp_species_frequency.csv")
+# library(phyloseq)
 ```
 
 
-```{r}
-species_frequency
-```
+# Plant Data
 
-# filter most frequent species for year 2005
-
-```{r}
-species_frequency %>% 
-  filter(year==2005)
-```
-
-
-
-## Get precip from weather station wunderground
-
-```{r}
-weatherglv2223<- read_csv("jwp_2022_2023_weather_tidy.csv")
+  1. **1979-2020 Surveys**
   
+    - `c_value_variations.csv`: plot, mean_wt_c, year, total_cover, total_richness, change_in_c
+    - `filtered-plots.csv`: plot, mean_wt_c, year
+    - `jwp_multi_year_survey.csv`: genus, species, percent_cover, plot,native, richness, year, c_value
+    - `jwp_species_frequency.csv`: genus, species, native, n, fraction, year, plot
+    - `jwp_variables.csv`: plot, mean_wt_c, year, total_cover, total_richness
+    - `native_species_freq_variation.csv`: genus, species, native, n, fraction, year, plot, change_species_freq, mean_native_species_freq
+    - `nonnative_species_freq_variation.csv`: genus, species, native, n, fraction, year, plot, change_species_freq, mean_nonnative_species_freq
+    - `richness_variations.csv`: plot, mean_wt_c, year, total_cover, total_richness, richness_change
+  
+  2. **2020 Survey**  
+  
+    - `jwp_survey.csv`: species, percent_cover, plot, native, richness, c_value
+    - `mean_wt_c.csv`: plot, mean_wt_c
+    - `species_frequency.csv`: species, n, fraction
+    - `total_cover.csv`: plot, total_cover
+    - `total_richness.csv`: plot, total_richness
+    
+
+## Recent Plant Community Insights
+
+In 2020, what was the site:  
+
+  - mean, min, and max weighted conservatism?
+  - most frequently occurring species?
+  - mean, min, and max total cover?
+  - mean, min, and max total species richness?
+
+
+```{r jwp-mean-wt-c}
+read_csv("data/plants/2020-survey/mean_wt_c.csv") %>% 
+  summarize(site_mean_wt_c = mean(mean_wt_c),
+            plot_min_wt_c = min(mean_wt_c),
+            plot_max_wt_c = max(mean_wt_c))
+```
+
+```{r jwp-freq-sp}
+read_csv("data/plants/2020-survey/species_frequency.csv") %>% 
+  slice_max(n, n = 5)
+```
+
+```{r jwp-total-cover}
+read_csv("data/plants/2020-survey/total_cover.csv") %>% 
+   summarize(site_total_cover = mean(total_cover),
+            plot_min_total_cover = min(total_cover),
+            plot_max_total_cover = max(total_cover))
+```
+
+```{r jwp-total-richness}
+read_csv("data/plants/2020-survey/total_richness.csv") %>% 
+  summarize(site_total_richness = mean(total_richness),
+            plot_min_total_richness = min(total_richness),
+            plot_max_total_richness = max(total_richness))
+```
+
+The most frequently occuring species were:  
+
+  - rosa carolina
+  - carex pellita
+  - comandra umbellata
+  - fragaria virginiana
+  - eryngium yuccifolium
+
+The overall site mean weighted conservatism was 4.4 and ranged from a plot-level minimum of zero to a maximum of 8.2.
+The overall site mean total cover was 9.9 and ranged from a plot-level minimum of 3 to a maximum of 21.
+
+# Meteorology Data
+
+## Precip and temperature conditions during 2022-2023, and for study periods
+
+
+```{r get-data}
+met_data <- read_csv("data/meteorology/jwp_2022_2023_weather_tidy.csv")
 ```
 
 ## Average Air temp
