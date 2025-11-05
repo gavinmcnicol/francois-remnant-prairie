@@ -190,6 +190,7 @@ met_data %>%
        color = "Sampling Dates") +
   theme_classic() +
   scale_color_manual(values = c("grey80", "red"))
+ggsave("figures/temp-pattern.png", width = 6, height = 4)
 ```
 
 ```{r seasonal-precip-pattern}
@@ -211,10 +212,14 @@ met_data %>%
        color = "Sampling Dates") +
   theme_classic() +
   scale_color_manual(values = c("grey80", "blue"))
+ggsave("figures/precip-pattern.png", width = 6, height = 4)
 ```
 
+Output both figures.
 
-# Average soil Temp and Moist for each date
+# Soil Moisture and Temperature Data
+
+## Average soil Temp and Moist for each date
 
 ```{r}
 full_data2223 %>% 
@@ -224,60 +229,7 @@ full_data2223 %>%
   mutate(avg_soil_moist = mean(soil_moist_percent, na.rm= T))
 ```
 
-
-## Temp and precip for the year 2022-2023 
-
-```{r}
-#temp <- 
-  weatherglv2223 %>%
-  ggplot(aes(x=yday, y= temp_avg, color = factor(year))) + geom_line()+ theme_classic(base_size = 13)+ theme(legend.position = "right")+ scale_color_manual(values= c("#ce0ef0", "#093991"))+
-  labs(title = "   
-       Temperature ", x = " Day", y = "Temperature (°C)", color= "Year")+ theme(legend.position = "none")
-```
-
-
-```{r}
-#precip <- 
-  weatherglv2223 %>%
-  ggplot(aes(x=yday, y= precip_accum, color = factor(year))) + geom_line()+theme(legend.position = "right")+ scale_color_manual(values= c("#ce0ef0", "#093991"))+ theme_classic(base_size = 13)+
-  labs(title = "   
-       Precipitation ", x = " Day", y = "Precipitation (mm)", color="Year") +theme(legend.position = "right")
-```
-
-# combine temp and precip in one figure
-```{r fig.height=6, fig.width=10}
-grid.arrange(temp, precip, ncol=2)
-
-```
-
-# Air Temp for the sampling period
-
-```{r}
-#air_temp <-
-  weatherglv2223 %>% 
-  filter(date >= "2022-07-09" & date <= "2022-11-02" | date >= "2023-03-23" & date<= "2023-08-18") %>% 
-  ggplot(aes(x=yday, y= temp_avg, color = factor(year)))+ geom_line()+ theme_classic(base_size = 13)+theme(legend.position = "right")+ scale_color_manual(values= c("#ce0ef0", "#093991"))+
-  labs(title = "   
-       Air temperature for the sampling period", x = " Day", y = "Air temperature (°C)", color="Year")+ theme(legend.position= "none")
-```
-
-# Precip for the sampling period of the 
-
-```{r}
-#precipitation <- 
-  weatherglv2223 %>% 
-  filter(date >= "2022-07-09" & date <= "2022-11-02" | date >= "2023-03-23" & date <= "2023-08-18") %>% 
-  ggplot(aes(x=yday, y= precip_accum, color = factor(year))) + geom_line()+ theme(legend.position = "right")+ scale_color_manual(values= c("#ce0ef0", "#093991"))+ theme_classic(base_size = 13)+
-  labs(title = "   
-       Precipitation for the sampling period", x = " Day", y = "Precipitation (mm)", color= "Year")+ theme(legend.position= "none")
-```
-  
-  
-```{r }
-grid.arrange(air_temp, precipitation, ncol=2)
-```
-
-# Avg Soil temp for the sampling period
+## Avg Soil temp for the sampling period
   
 ```{r}
 #soil_temp <- 
@@ -296,7 +248,7 @@ labs(title = "
 ``` 
 
 
-# Avg soil moisture for the sampling period
+## Avg soil moisture for the sampling period
 
 ```{r}
 #soil_moist <- 
@@ -318,8 +270,6 @@ labs(title = "
 ```{r}
 grid.arrange(soil_temp, soil_moist, ncol=2)
 ```
- 
- 
  
  
 ```{r}
@@ -394,6 +344,8 @@ full_data2223 %>%
   geom_boxplot() + 
   geom_jitter()
 ```
+
+# Fluxes
 
 ## Read flux data (Method: using iterative functions)
 
