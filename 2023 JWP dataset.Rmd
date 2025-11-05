@@ -9,18 +9,46 @@ name: "Junior Francois"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
-sessionInfo()
+# Packages
+
+```{r install-libraries}
+## List required packages
+required_packages <- c(
+  "readr",
+  "tidyverse",
+  "readxl",
+  "tidymodels",
+  "data.table",
+  "patchwork",
+  "hrbrthemes",
+  "multilevelmod",
+  "nlme",
+  "parsnip",
+  "rwunderground",
+  "ggpubr",
+  "ggsignif",
+  "ggtern",
+  "gridExtra",
+  "data2",
+  "pyhloseq"
+)
+
+## Create function to identify and install missing packages
+install_if_missing <- function(pkg) {
+  if (!require(pkg, character.only = TRUE)) {
+    install.packages(pkg, repos = "https://cran.rstudio.com/")
+  }
+  library(pkg, character.only = TRUE)
+}
+
+## Use function to install packages
+invisible(lapply(required_packages, install_if_missing))
 ```
 
-```{r}
+```{r load-packages}
 
-```
-
-
-```{r load packages}
+# Load all libraries
 library(readr)
-install.packages("tidyverse")
 library(tidyverse)
 library(readxl)
 library(openintro)
@@ -32,32 +60,19 @@ library(data.table)
 library(patchwork) 
 library(hrbrthemes)
 library(multilevelmod)
-library(lme4)
 library(nlme)
-detach(package:lme4)
 library(parsnip)
-install.packages("rwunderground")
 library(rwunderground)
-install.packages("ggpubr")
 library(ggpubr)
 library(ggsignif)
-install.packages("ggtern")
 library(ggtern)
 library(ggplot2)
-install.packages("gridExtra")
 library(gridExtra)
-install.packages("data2")
 library(data2)
-
 library(phyloseq)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
+# Get Data
 
 # Import species frequency data at JWP
 
