@@ -142,19 +142,77 @@ The overall site mean total cover was 9.9 and ranged from a plot-level minimum o
 
 ## Precip and temperature conditions during 2022-2023, and for study periods
 
-
 ```{r get-data}
-met_data <- read_csv("data/meteorology/jwp_2022_2023_weather_tidy.csv")
+met_data <- read_csv("data/meteorology/jwp_2022_2023_weather_tidy.csv") %>% 
+    mutate(date= as.Date(date),
+           yday= yday(date),
+           month=month(date),
+           year = year(date)) %>% 
+  relocate(year, month, yday, date) %>% 
+  select(1:4, 6, 19)
+met_data
 ```
 
-## Average Air temp
-```{r}
-weatherglv2223 <- weatherglv2223 %>% 
-  mutate(avg_airtemp= mean(temp_avg, na.rm=T)) %>% 
-  mutate(date= as.Date(date),
-         yday= yday(date),
-         year = year(date)) 
+What is the min, max, and mean monthly average temperature and precipiation?
+
+```{r monthly-weather-stats}
+met_data %>% 
+  group_by(year, month) %>% 
+  summarize(mmt = mean(temp_avg, na.rm = T), # mean monthly temperature
+            cmp = sum(precip_accum, na.rm = T)) # cumulative monthly precipiation 
 ```
+
+In the 2022 study period, mean monthly average temperatures ranged from 23.4 in July to 5.9 in Novermber. 
+In the 2023 study period, mean monthly average temperatures ranged from 2.8 in January to 22.8 in July.
+
+In the 2022 study period, cumulative monthly precipitation ranged from 149.9 mm in July to 22.9 in November.
+In the 2023 study period, mean monthly precipitation ranged from 20.3 mm in May to 228.6 in July.
+
+
+What does the study period seasonal pattern of moisture and tempertaure look like?
+
+```{r seasonal-temp-moisture-pattern}
+met_data %>% 
+  group_by(year, month) %>% 
+  summarize(date = median(date),
+            mmt = mean(temp_avg, na.rm = T), # mean monthly temperature
+            cmp = sum(precip_accum, na.rm = T)) %>% 
+  mutate(study_period = case_when(
+    year == 2022 & month %in% c(7:11) ~ "Sampling",
+    year == 2023 & month %in% c(3, 5:8) ~ "Sampling",
+    T ~ "No sampling"
+  )) %>% 
+  ggplot(aes(x = date, y = mmt)) + 
+  geom_line(color = "grey") +
+  geom_point(aes(x = date, y = mmt, color = study_period), size = 4) +
+  labs(x = "Date",
+       y = expression("Mean Monthly Temp. ("*degree*"C)"),
+       color = "Sampling Dates") +
+  theme_classic() +
+  scale_color_manual(values = c("grey80", "red"))
+```
+
+```{r seasonal-precip-pattern}
+met_data %>% 
+  group_by(year, month) %>% 
+  summarize(date = median(date),
+            mmt = mean(temp_avg, na.rm = T), # mean monthly temperature
+            cmp = sum(precip_accum, na.rm = T)) %>% 
+  mutate(study_period = case_when(
+    year == 2022 & month %in% c(7:11) ~ "Sampling",
+    year == 2023 & month %in% c(3, 5:8) ~ "Sampling",
+    T ~ "No sampling"
+  )) %>% 
+  ggplot(aes(x = date, y = cmp)) + 
+  geom_point(aes(x = date, y = cmp, color = study_period), size = 4) +
+  geom_segment(aes(x = date, xend = date, y = 0, yend = cmp, color = study_period)) +
+  labs(x = "Date",
+       y = expression("Cum. Monthly Precip. (mm)"),
+       color = "Sampling Dates") +
+  theme_classic() +
+  scale_color_manual(values = c("grey80", "blue"))
+```
+
 
 # Average soil Temp and Moist for each date
 
