@@ -303,7 +303,7 @@ soil_temp_moist %>%
   theme_classic(base_size = 13) +
   theme(strip.background = element_blank(),
         axis.title.y = element_blank()) 
-``` 
+```
 
 Temp: Very little difference among plots, but major seaosonal pattern.
 
@@ -347,7 +347,10 @@ soil_temp_moist %>%
   theme(strip.background = element_blank(),
         axis.title.y = element_blank()) 
 ```
-
+ 
+```{r}
+grid.arrange(soil_temp, soil_moist, ncol=2)
+```
  
  
 ```{r}
