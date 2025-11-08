@@ -62,9 +62,6 @@ library(parsnip)
 library(rwunderground)
 library(ggpubr)
 library(ggsignif)
-library(ggtern)
-library(ggplot2)
-library(gridExtra)
 # library(phyloseq)
 ```
 
@@ -190,6 +187,7 @@ met_data %>%
        color = "Sampling Dates") +
   theme_classic() +
   scale_color_manual(values = c("grey80", "red"))
+ggsave("figures/temp-pattern.png", width = 6, height = 4)
 ```
 
 ```{r seasonal-precip-pattern}
@@ -211,115 +209,145 @@ met_data %>%
        color = "Sampling Dates") +
   theme_classic() +
   scale_color_manual(values = c("grey80", "blue"))
+ggsave("figures/precip-pattern.png", width = 6, height = 4)
 ```
 
+Output both figures.
 
-# Average soil Temp and Moist for each date
+# Soil Moisture and Temperature Data
 
-```{r}
-full_data2223 %>% 
-  select(date, soil_temp_c, soil_moist_percent) %>% 
-  filter(date== "2022-07-22") %>% 
-  mutate(avg_soil_temp= mean(soil_temp_c, na.rm= T)) %>% 
-  mutate(avg_soil_moist = mean(soil_moist_percent, na.rm= T))
+Get the soil data: `soil_moist_temp23.csv`
+
+```{r get-soil-data}
+read_csv("data/soil/soil_moist_temp23.csv",
+         na = "na") %>%
+  mutate(date = str_replace(date, "/", "-"),
+         date = str_replace(date, "/", "-"),
+         date = mdy(date),
+         
+         plant_cover_percent = case_when(
+           plant_cover_percent == "<5" ~ "5",
+           T ~ plant_cover_percent),
+         
+         plant_cover_percent = as.numeric(plant_cover_percent)) %>% 
+    group_by(date) %>% 
+     summarize(mean_soil_temp = mean(soil_temp_c, na.rm = T),
+            mean_soil_moist = mean(soil_moist_percent, na.rm = T),
+            mean_plant_cover = mean(plant_cover_percent, na.rm = T)) %>% 
+  arrange(date)
 ```
 
+It is missing 2022, and the data seem very strange! Trying another dataset.
 
-## Temp and precip for the year 2022-2023 
+Get the soil data: `export-soil-temp-data.csv`
 
-```{r}
-#temp <- 
-  weatherglv2223 %>%
-  ggplot(aes(x=yday, y= temp_avg, color = factor(year))) + geom_line()+ theme_classic(base_size = 13)+ theme(legend.position = "right")+ scale_color_manual(values= c("#ce0ef0", "#093991"))+
-  labs(title = "   
-       Temperature ", x = " Day", y = "Temperature (°C)", color= "Year")+ theme(legend.position = "none")
+```{r get-soil-data-2}
+soil_temp_moist <- read_csv("data/soil/export-soil-temp-data.csv",
+         na = "NA",
+         col_names = 
+           c("row",
+             "plot",
+             "soil_temp_c",
+             "soil_moist_percent",
+             "date"),
+         col_types = 
+           c("i",
+             "f",
+             "d",
+             "d",
+             "D"),
+         skip = 1,
+         ) %>%
+  group_by(plot, date) %>% 
+     summarize(mean_soil_temp = mean(soil_temp_c, na.rm = T),
+            mean_soil_moist = mean(soil_moist_percent, na.rm = T)) %>% 
+  arrange(plot)
 ```
 
-
-```{r}
-#precip <- 
-  weatherglv2223 %>%
-  ggplot(aes(x=yday, y= precip_accum, color = factor(year))) + geom_line()+theme(legend.position = "right")+ scale_color_manual(values= c("#ce0ef0", "#093991"))+ theme_classic(base_size = 13)+
-  labs(title = "   
-       Precipitation ", x = " Day", y = "Precipitation (mm)", color="Year") +theme(legend.position = "right")
-```
-
-# combine temp and precip in one figure
-```{r fig.height=6, fig.width=10}
-grid.arrange(temp, precip, ncol=2)
-
-```
-
-# Air Temp for the sampling period
-
-```{r}
-#air_temp <-
-  weatherglv2223 %>% 
-  filter(date >= "2022-07-09" & date <= "2022-11-02" | date >= "2023-03-23" & date<= "2023-08-18") %>% 
-  ggplot(aes(x=yday, y= temp_avg, color = factor(year)))+ geom_line()+ theme_classic(base_size = 13)+theme(legend.position = "right")+ scale_color_manual(values= c("#ce0ef0", "#093991"))+
-  labs(title = "   
-       Air temperature for the sampling period", x = " Day", y = "Air temperature (°C)", color="Year")+ theme(legend.position= "none")
-```
-
-# Precip for the sampling period of the 
-
-```{r}
-#precipitation <- 
-  weatherglv2223 %>% 
-  filter(date >= "2022-07-09" & date <= "2022-11-02" | date >= "2023-03-23" & date <= "2023-08-18") %>% 
-  ggplot(aes(x=yday, y= precip_accum, color = factor(year))) + geom_line()+ theme(legend.position = "right")+ scale_color_manual(values= c("#ce0ef0", "#093991"))+ theme_classic(base_size = 13)+
-  labs(title = "   
-       Precipitation for the sampling period", x = " Day", y = "Precipitation (mm)", color= "Year")+ theme(legend.position= "none")
-```
+Plot soil temperature by date and plot
   
-  
-```{r }
-grid.arrange(air_temp, precipitation, ncol=2)
-```
-
-# Avg Soil temp for the sampling period
-  
-```{r}
-#soil_temp <- 
-  full_data2223 %>% 
-   rename(Microtopography= plot) %>% 
-  group_by(Microtopography,date) %>%
-  mutate(yday= yday(date),
-         year= year(date)) %>% 
-  mutate(avg_soil_temp= mean(soil_temp_c, na.rm= T)) %>% 
-  ggplot(aes(x = yday, y = avg_soil_temp, color = Microtopography, shape = factor(year))) + scale_color_manual(values= c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0"))+
-  geom_point(size=3)+
-  theme_classic(base_size = 13)+
-labs(title = "
-     Soil temperature", x = " Day", y = "Soil temperature (°C)",shape= "Year")+
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ theme(legend.position = "none")
+```{r soil-temp-dynamics}
+soil_temp_moist %>% 
+  # rename(microtopography = plot) %>% 
+  pivot_longer(3:4, names_to = "soil_var", values_to = "values") %>% 
+  group_by(plot, date) %>%
+  mutate(year = year(date),
+         soil_var = fct_relevel(soil_var, "mean_soil_temp", "mean_soil_moist"),
+         values = case_when(
+           date == "2022-10-19" & soil_var == "mean_soil_moist" ~ NA,
+           T ~ values
+         )) %>% 
+  relocate(year, date) %>% 
+  ggplot(aes(x = date, 
+             y = values, 
+             # color = soil_var, 
+             shape = plot, 
+             alpha = plot)) +
+  geom_point(size = 3) +
+  facet_wrap(~soil_var, 
+             ncol = 1,
+             scales = "free_y",
+             labeller = labeller(
+               soil_var = c(
+                "mean_soil_temp" = "TSoil (°C)",
+                "mean_soil_moist"=   "VWC (%)") 
+             )) +
+  # scale_color_manual(values = c("#1c2ed6", "#ce0ef0")) +
+  scale_alpha_manual(values = c(0.25, 0.5, 0.75, 1)) +
+  labs(title = "Seasonal Pattern in Soil Temperature", 
+     subtitle = "On gas flux sampling days",
+     x = "Day", 
+     y = NA,
+     shape = "Plot",
+     alpha = "Plot") +
+  theme_classic(base_size = 13) +
+  theme(strip.background = element_blank(),
+        axis.title.y = element_blank()) 
 ``` 
 
+Temp: Very little difference among plots, but major seaosonal pattern.
 
-# Avg soil moisture for the sampling period
+Big differences among plots, less of pronounced seasonal pattern.
 
-```{r}
-#soil_moist <- 
-  full_data2223 %>% 
-  rename(Microtopography= plot) %>% 
-  mutate(yday= yday(date),
-         year= year(date)) %>% 
-  group_by(Microtopography, date) %>% 
-  mutate(avg_soil_moist= mean(soil_moist_percent, na.rm= T)) %>% 
-ggplot(aes(x = yday, y = avg_soil_moist, color = Microtopography, shape = factor(year))) +
-  geom_point(size=3)+ scale_color_manual(values= c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0"))+
-  # geom_smooth()+
-labs(title = " 
-     Soil moisture", x = "Day", y = " Soil moisture (%)", shape= "Year")+
-  theme_classic(base_size = 13)+
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+ theme(legend.position= "right")
+**I'm going to remove the anomalous values in Fall 2022. They look to be biased low.
+
+Final plot:
+
+```{r final-soil-dynamics}
+soil_temp_moist %>% 
+  # rename(microtopography = plot) %>% 
+  pivot_longer(3:4, names_to = "soil_var", values_to = "values") %>% 
+  group_by(plot, date) %>%
+  mutate(year = year(date),
+         soil_var = fct_relevel(soil_var, "mean_soil_temp", "mean_soil_moist")) %>% 
+  relocate(year, date) %>% 
+  ggplot(aes(x = date, 
+             y = values, 
+             # color = soil_var, 
+             shape = plot, 
+             alpha = plot)) +
+  geom_point(size = 3) +
+  facet_wrap(~soil_var, 
+             ncol = 1,
+             scales = "free_y",
+             labeller = labeller(
+               soil_var = c(
+                "mean_soil_temp" = "TSoil (°C)",
+                "mean_soil_moist"=   "VWC (%)") 
+             )) +
+  # scale_color_manual(values = c("#1c2ed6", "#ce0ef0")) +
+  scale_alpha_manual(values = c(0.25, 0.5, 0.75, 1)) +
+  labs(title = "Seasonal Pattern in Soil Temperature", 
+     subtitle = "On gas flux sampling days",
+     x = "Day", 
+     y = NA,
+     shape = "Plot",
+     alpha = "Plot") +
+  theme_classic(base_size = 15) +
+  theme(strip.background = element_blank(),
+        axis.title.y = element_blank()) 
 ```
- 
-```{r}
-grid.arrange(soil_temp, soil_moist, ncol=2)
-```
- 
- 
+
  
  
 ```{r}
@@ -394,6 +422,8 @@ full_data2223 %>%
   geom_boxplot() + 
   geom_jitter()
 ```
+
+# Fluxes
 
 ## Read flux data (Method: using iterative functions)
 
