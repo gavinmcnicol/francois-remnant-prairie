@@ -323,10 +323,11 @@ soil_temp_moist %>%
   relocate(year, date) %>% 
   ggplot(aes(x = date, 
              y = values, 
-             # color = soil_var, 
+             color = plot, 
              shape = plot, 
-             alpha = plot)) +
-  geom_point(size = 3) +
+             # alpha = plot
+             )) +
+  geom_point(size = 3, alpha = c(0.75)) +
   facet_wrap(~soil_var, 
              ncol = 1,
              scales = "free_y",
@@ -336,13 +337,15 @@ soil_temp_moist %>%
                 "mean_soil_moist"=   "VWC (%)") 
              )) +
   # scale_color_manual(values = c("#1c2ed6", "#ce0ef0")) +
+    scale_color_manual(values = c("#ce0ef0", "#d2add9", "#1c2ed6", "#75b0e0")) +
   scale_alpha_manual(values = c(0.25, 0.5, 0.75, 1)) +
   labs(title = "Seasonal Pattern in Soil Temperature", 
      subtitle = "On gas flux sampling days",
      x = "Day", 
      y = NA,
      shape = "Plot",
-     alpha = "Plot") +
+     alpha = "Plot",
+     color = "Plot") +
   theme_classic(base_size = 15) +
   theme(strip.background = element_blank(),
         axis.title.y = element_blank()) 
