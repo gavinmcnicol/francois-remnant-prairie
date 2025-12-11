@@ -1,0 +1,1 @@
+row,date_collected,timepoint,gc_run_date,filename,chamber,co2_height,ch4_height,n2o_height,chamber_str,is_std,mean_co2_height,mean_ch4_height,mean_n2o_height,co2_precision,ch4_precision,n2o_precision,co2_ppm,ch4_ppm,n2o_ppm
