@@ -1,0 +1,313 @@
+---
+title: "GC Workflow (All Runs): Peak Heights → PPM"
+author: "Gavin McNicol"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+runtime: shiny
+params:
+  gc_raw_root: "flux-processing/data/fluxes/gc-raw"
+  tidy_root: "flux-processing/data/tidy"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+library(tidyverse)
+library(readr)
+library(janitor)
+library(lubridate)
+library(stringr)
+library(DT)
+library(shiny)
+
+# source functions
+source("flux-processing/gc_batch_process.R")
+source("flux-processing/gc_heights_to_ppm.R")
+```
+
+# STEP ONE - GET PEAK HEIGHTS AND MATCH SAMPLES/STDs USING SAMPLE_LOG.csv
+
+```{r all-files}
+gc_raw_root <- params$gc_raw_root
+tidy_root   <- params$tidy_root
+
+log_msg("GC raw root:", gc_raw_root)
+log_msg("Tidy root:", tidy_root)
+
+# Find all directories containing a sample_log.csv
+run_dirs <- list.dirs(gc_raw_root, recursive = TRUE, full.names = TRUE)
+run_dirs <- run_dirs[file.exists(file.path(run_dirs, "sample_log.csv"))]
+
+log_msg("Found", length(run_dirs), "run directories with sample_log.csv")
+
+# Process each run dir -> writes *_gc_peak_heights.csv (and your *_gc_standards.csv if enabled)
+walk(run_dirs, ~process_gc_run(.x, tidy_root = tidy_root))
+```
+
+```{r select-date-folder}
+# Pick a date to run
+selected_date <- as.Date("2023-07-18")
+
+run_dirs <- list.dirs(gc_raw_root, recursive = TRUE, full.names = TRUE)
+run_dirs <- run_dirs[file.exists(file.path(run_dirs, "sample_log.csv"))]
+
+run_dirs <- run_dirs[
+  !is.na(lubridate::mdy(stringr::str_replace_all(basename(run_dirs), "\\.", "/"))) &
+  lubridate::mdy(stringr::str_replace_all(basename(run_dirs), "\\.", "/")) == selected_date
+]
+
+log_msg("Selected date:", as.character(selected_date))
+log_msg("Runs to process:", length(run_dirs))
+
+walk(run_dirs, ~process_gc_run(.x, tidy_root = tidy_root))
+```
+
+Check sampling date .csv for bad dates.
+
+```{r check-dates}
+peak_summary <- list.files(
+  "flux-processing/data/tidy",
+  pattern = "_gc_peak_heights\\.csv$",
+  recursive = TRUE,
+  full.names = TRUE
+) %>%
+  tibble(file = .) %>%
+  mutate(
+    run_label = basename(dirname(file))
+  ) %>%
+  mutate(
+    data = map(file, ~ suppressWarnings(readr::read_csv(.x, show_col_types = FALSE)))
+  ) %>%
+  unnest(data) %>%
+  group_by(run_label) %>%
+  summarize(
+    n_rows = n(),
+    n_na_meta = sum(is.na(site) | is.na(gc_run_date)),
+    n_na_heights = sum(is.na(co2_height) | is.na(ch4_height) | is.na(n2o_height)),
+    has_stds = any(str_detect(as.character(chamber), regex("std", ignore_case = TRUE))),
+    .groups = "drop"
+  ) %>%
+  arrange(run_label)
+
+peak_summary
+
+peak_summary %>%
+  filter(n_na_meta == n_rows) %>%
+  pull(run_label)
+```
+
+Check specific date tables.
+
+```{r}
+run <- "230818"
+
+ph <- read_csv(glue::glue("flux-processing/data/tidy/{run}/{run}_gc_peak_heights.csv"))
+sl <- read_csv(glue::glue("flux-processing/data/fluxes/gc-raw/2023/8.18.23/sample_log.csv")) %>%
+  janitor::clean_names()
+
+setdiff(unique(ph$filename), unique(sl$filename))
+setdiff(unique(sl$filename), unique(ph$filename))
+```
+
+
+```{r identify-bad-processing}
+peak_files <- list.files(
+  "flux-processing/data/tidy",
+  pattern = "_gc_peak_heights\\.csv$",
+  full.names = TRUE,
+  recursive = TRUE
+)
+
+meta_cols_strict <- c("filename", "gc_run_date", "site", "timepoint")
+meta_cols_nonstd <- c("date_collected", "ecosystem", "chamber_no")
+height_cols      <- c("co2_height", "ch4_height", "n2o_height")
+
+# helper: pull a set of columns, adding missing ones as NA
+get_cols_or_na <- function(df, cols) {
+  missing <- setdiff(cols, names(df))
+  if (length(missing)) {
+    df[missing] <- NA
+  }
+  df[, cols, drop = FALSE]
+}
+
+peak_qc <- tibble(file = peak_files) %>%
+  mutate(
+    dat = map(file, ~ readr::read_csv(.x, show_col_types = FALSE)),
+
+    n_rows = map_int(dat, nrow),
+
+    any_na_heights = map_lgl(dat, ~ {
+      h <- get_cols_or_na(.x, height_cols)
+      any(is.na(h))
+    }),
+    all_na_heights = map_lgl(dat, ~ {
+      h <- get_cols_or_na(.x, height_cols)
+      all(is.na(h))
+    }),
+
+    # strict meta: must exist + non-NA for everyone (i.e., flag if ANY NA anywhere)
+    any_na_meta_strict = map_lgl(dat, ~ {
+      m <- get_cols_or_na(.x, meta_cols_strict)
+      any(is.na(m))
+    }),
+    # "all rows have all strict meta NA" (or columns missing => NA) => TRUE
+    all_na_meta_strict = map_lgl(dat, ~ {
+      m <- get_cols_or_na(.x, meta_cols_strict)
+      all(rowSums(!is.na(m)) == 0)
+    }),
+
+    # non-STD meta: only enforce for non-standards
+    any_na_meta_nonstd = map_lgl(dat, ~ {
+      df <- .x
+
+      # ensure site/chamber exist for STD detection
+      if (!"site" %in% names(df)) df$site <- NA_character_
+      if (!"chamber" %in% names(df)) df$chamber <- NA_character_
+
+      is_std <- grepl("std", df$site, ignore.case = TRUE) |
+                grepl("std", df$chamber, ignore.case = TRUE)
+
+      x <- df[!is_std %in% TRUE, , drop = FALSE]  # keep FALSE/NA as "non-STD-ish"
+      if (nrow(x) == 0) return(FALSE)
+
+      m2 <- get_cols_or_na(x, meta_cols_nonstd)
+      any(is.na(m2))
+    })
+  ) %>%
+  select(-dat)
+
+peak_qc %>%
+  filter(
+    any_na_heights | all_na_heights |
+      any_na_meta_strict | all_na_meta_strict |
+      any_na_meta_nonstd
+  ) %>%
+  arrange(desc(any_na_meta_nonstd), desc(any_na_meta_strict), desc(any_na_heights)) %>%
+  print(n = Inf)
+```
+
+# STEP 2 - CONVERT HEIGHTS TO PPM and OUTPUT SAMPLE PPM and STD PPM
+
+```{r}
+# tidy_root should match what you used in step 01
+tidy_root <- "flux-processing/data/tidy"
+
+peak_files <- list.files(
+  tidy_root,
+  pattern = "_gc_peak_heights\\.csv$",
+  full.names = TRUE,
+  recursive = TRUE
+)
+
+# helper: infer run_label from folder name (e.g. .../230802/230802_gc_peak_heights.csv)
+get_run_label <- function(path) basename(dirname(path))
+
+ppm_batch <- tibble(
+  run_label = map_chr(peak_files, get_run_label),
+  peaks_file = peak_files
+) %>%
+  arrange(run_label) %>%
+  mutate(
+    result = map(peaks_file, ~{
+      tryCatch(
+        heights_to_ppm(.x),  # uses your default output naming in same folder
+        error = function(e) e
+      )
+    }),
+    ok = map_lgl(result, ~!inherits(.x, "error")),
+    err = map_chr(result, ~if (inherits(.x, "error")) conditionMessage(.x) else NA_character_)
+  ) %>%
+  select(-result)
+
+# Show any failures
+ppm_batch %>% filter(!ok) %>% print(n = Inf)
+
+# Quick success count
+ppm_batch %>% count(ok)
+```
+
+
+## Overview
+
+This RMarkdown runs the GC processing workflow in two steps for a single run date:
+	1.	Extract peak heights from all .txt files in the GC run folder and write a tidy CSV:
+	•	{tidy_root}/{run_label}/{run_label}_gc_peak_heights.csv
+	2.	Convert peak heights to ppm (using standards) and write:
+	•	{r  un_label}_std_heights.csv
+	•	{run_label}_ghg_ppm.csv (only if non-STD samples exist)
+
+Example run folder: flux-processing/data/fluxes/gc-raw/2022/7.9.22
+
+## 1 - Extract peak heights for 7.9.22
+
+```{r run-step-1}
+run_dir   <- "flux-processing/data/fluxes/gc-raw/2022/7.9.22"
+tidy_root <- "flux-processing/data/tidy"
+
+res_peaks <- process_gc_run(run_dir, tidy_root = tidy_root)
+```
+
+Inspect written peak heights
+
+```{r inspect-peaks}
+run_label  <- "220709"
+peaks_file <- file.path(tidy_root, run_label, paste0(run_label, "_gc_peak_heights.csv"))
+
+file.exists(peaks_file)
+ph <- readr::read_csv(peaks_file, show_col_types = FALSE)
+glimpse(ph)
+count(ph, chamber)
+```
+
+## QC - Diagnose and Flag Bad STD Injections
+
+```{r qc-chunk}
+stds_file <- file.path(tidy_root, run_label, paste0(run_label, "_gc_standards.csv"))
+
+file.exists(stds_file)
+stds <- readr::read_csv(stds_file, show_col_types = FALSE)
+
+stds %>%
+  pivot_longer(c(co2_height, ch4_height, n2o_height),
+               names_to = "gas",
+               values_to = "height") %>%
+  ggplot(aes(row, height)) +
+  geom_point() +
+  facet_wrap(~ gas, scales = "free_y") 
+```
+
+
+## 2 - Convert peak heights to ppm
+
+```{r run-step-2}
+# Converts the one run we just produced
+res_ppm <- heights_to_ppm(peaks_file)
+```
+
+```{r inspect-outputs}
+std_file <- file.path(dirname(peaks_file), paste0(run_label, "_std_heights.csv"))
+ppm_file <- file.path(dirname(peaks_file), paste0(run_label, "_ghg_ppm.csv"))
+
+file.exists(std_file)
+if (file.exists(std_file)) {
+  std <- readr::read_csv(std_file, show_col_types = FALSE)
+  print(std)
+}
+
+file.exists(ppm_file)
+if (file.exists(ppm_file)) {
+  ppm <- readr::read_csv(ppm_file, show_col_types = FALSE)
+  glimpse(ppm)
+  head(ppm, 10)
+} else {
+  message("No ghg_ppm.csv was written — likely because this run contains only standards (STD) and no non-STD samples.")
+}
+```
+
+
+
+

@@ -1,0 +1,2 @@
+gc_run_date,mean_co2_height,mean_ch4_height,mean_n2o_height,co2_precision,ch4_precision,n2o_precision,n_std_used,n_std_total,n_std_dropped_low,qc_flag
+2023-05-24,982435.4285714285,9923.142857142857,14449.714285714286,5.939270723754617,3.7800810533589835,9.257527512053326,7,15,8,WARN

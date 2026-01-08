@@ -1,6 +1,6 @@
 ---
 Data: "2023 JWP data"
-title: "Remnant Prairie Climate Climate Interactions - 2022-2023"
+title: "Remnant Prairie Climate Interactions - 2022-2023"
 output: html_document
 date: "2023-11-22"
 name: "Junior Francois"
