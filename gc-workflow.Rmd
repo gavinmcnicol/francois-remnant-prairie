@@ -26,14 +26,15 @@ library(shiny)
 # source functions
 source("flux-processing/gc_batch_process.R")
 source("flux-processing/gc_heights_to_ppm.R")
+
+gc_raw_root <- params$gc_raw_root
+tidy_root   <- params$tidy_root
+
 ```
 
 # STEP ONE - GET PEAK HEIGHTS AND MATCH SAMPLES/STDs USING SAMPLE_LOG.csv
 
 ```{r all-files}
-gc_raw_root <- params$gc_raw_root
-tidy_root   <- params$tidy_root
-
 log_msg("GC raw root:", gc_raw_root)
 log_msg("Tidy root:", tidy_root)
 
@@ -228,6 +229,20 @@ ppm_batch %>% filter(!ok) %>% print(n = Inf)
 
 # Quick success count
 ppm_batch %>% count(ok)
+```
+
+```{r review-file}
+# tidy_root should match what you used in step 01
+tidy_root <- "flux-processing/data/tidy"
+
+peak_files <- list.files(
+  tidy_root,
+  pattern = "_ghg_ppm\\.csv$",
+  full.names = TRUE,
+  recursive = TRUE
+)
+
+peak_files
 ```
 
 

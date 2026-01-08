@@ -137,39 +137,43 @@ get_peak_heights_from_file <- function(path) {
 }
 
 # filename helper
+# ---- SAFE filename normalizer (drop-in replacement) ----
 normalize_gc_filename_one <- function(x) {
   x0 <- stringr::str_trim(as.character(x))
   x0 <- stringr::str_replace_all(x0, "\\s+", "")
   x0 <- stringr::str_replace(x0, "\\.(txt|gcd)$", "")
   
-  # 1) Canonical already: MMDDYY_### or MMDDYYb_###
-  tok6 <- stringr::str_extract(x0, "\\d{6}b?_\\d{3}")
+  # 1) canonical already: 081823_001 or 081823b_001
+  tok6 <- stringr::str_extract(x0, "\\b\\d{6}b?_\\d{3}\\b")
   if (!is.na(tok6)) return(tok6)
   
-  # 2) Long form: MMDDYYYY_### or MMDDYYYYb_###  -> convert to MMDDYY(+b)_###
-  m8 <- stringr::str_match(x0, "^(\\d{2})(\\d{2})(\\d{4})(b?)_(\\d{3})$")
-  if (!is.na(m8[1,1])) {
-    mm <- m8[1,2]
-    dd <- m8[1,3]
-    yy <- substr(m8[1,4], 3, 4)   # last two digits of year
-    b  <- m8[1,5]
-    n  <- m8[1,6]
-    return(paste0(mm, dd, yy, b, "_", n))
+  # 2) MMDDYYYY_001 -> MMDDYY_001  (e.g. 08182023_001 -> 081823_001)
+  tok8 <- stringr::str_extract(x0, "\\b\\d{8}b?_\\d{3}\\b")
+  if (!is.na(tok8)) {
+    d8  <- stringr::str_match(tok8, "^(\\d{2})(\\d{2})(\\d{4})(b?)_(\\d{3})$")
+    if (!is.na(d8[1,1])) {
+      mm <- d8[1,2]; dd <- d8[1,3]; yy <- substr(d8[1,4], 3, 4); b <- d8[1,5]; n <- d8[1,6]
+      return(paste0(mm, dd, yy, b, "_", n))
+    }
   }
   
-  # 3) Excel/date-like: 8/18/2023_001 or 08-18-23b_001 -> MMDDYY(+b)_###
-  mslash <- stringr::str_match(x0, "^(\\d{1,2})[/-](\\d{1,2})[/-](\\d{2,4})(b?)_(\\d{3})$")
-  if (!is.na(mslash[1,1])) {
-    mm <- as.integer(mslash[1,2])
-    dd <- as.integer(mslash[1,3])
-    yy <- as.integer(mslash[1,4]) %% 100
-    b  <- mslash[1,5]
-    n  <- mslash[1,6]
-    return(sprintf("%02d%02d%02d%s_%s", mm, dd, yy, b, n))
+  # 3) Excel-ish: 8/2/2023_001 or 08-02-23_001 (+ optional b)
+  m <- stringr::str_match(x0, "^(\\d{1,2})[/-](\\d{1,2})[/-](\\d{2,4})(b?)_(\\d{3})$")
+  if (!is.na(m[1,1])) {
+    mm <- sprintf("%02d", as.integer(m[1,2]))
+    dd <- sprintf("%02d", as.integer(m[1,3]))
+    yy <- sprintf("%02d", as.integer(m[1,4]) %% 100)
+    b  <- m[1,5]
+    nn <- m[1,6]
+    return(paste0(mm, dd, yy, b, "_", nn))
   }
   
-  # fallback
+  # 4) last resort: return cleaned string
   x0
+}
+
+normalize_gc_filename <- function(x) {
+  vapply(x, normalize_gc_filename_one, character(1))
 }
 
 # extract file name helper
