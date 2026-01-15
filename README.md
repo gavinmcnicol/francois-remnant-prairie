@@ -1,6 +1,6 @@
 # GC Flux Processing Pipeline (Peak Heights → ppm)
 
-This repository contains an end-to-end workflow for processing Shimadzu LabSolutions GC `.txt` exports into tidy peak-height tables and calibrated gas concentrations (ppm). The pipeline is designed to be **batch-run across many GC run folders**, with **robust handling of inconsistent student sample logs** and **QC-driven exclusion of bad standard injections**.
+This repository contains an end-to-end workflow for processing Shimadzu LabSolutions GC `.txt` exports into tidy peak-height tables and calibrated gas concentrations (ppm). The pipeline is designed to be **batch-run across many GC run folders**, with **robust handling of inconsistencies in sample logs** and **QC-driven exclusion of bad standard injections**.
 
 ---
 
