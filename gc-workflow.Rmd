@@ -26,6 +26,7 @@ library(shiny)
 # source functions
 source("flux-processing/gc_batch_process.R")
 source("flux-processing/gc_heights_to_ppm.R")
+source("flux-processing/ppm_to_mol.R")
 
 gc_raw_root <- params$gc_raw_root
 tidy_root   <- params$tidy_root
@@ -33,6 +34,8 @@ tidy_root   <- params$tidy_root
 ```
 
 # STEP ONE - GET PEAK HEIGHTS AND MATCH SAMPLES/STDs USING SAMPLE_LOG.csv
+
+For all dates (folders)...
 
 ```{r all-files}
 log_msg("GC raw root:", gc_raw_root)
@@ -48,22 +51,24 @@ log_msg("Found", length(run_dirs), "run directories with sample_log.csv")
 walk(run_dirs, ~process_gc_run(.x, tidy_root = tidy_root))
 ```
 
+Or for a single, selected date (folder)...
+
 ```{r select-date-folder}
-# Pick a date to run
-selected_date <- as.Date("2023-07-18")
-
-run_dirs <- list.dirs(gc_raw_root, recursive = TRUE, full.names = TRUE)
-run_dirs <- run_dirs[file.exists(file.path(run_dirs, "sample_log.csv"))]
-
-run_dirs <- run_dirs[
-  !is.na(lubridate::mdy(stringr::str_replace_all(basename(run_dirs), "\\.", "/"))) &
-  lubridate::mdy(stringr::str_replace_all(basename(run_dirs), "\\.", "/")) == selected_date
-]
-
-log_msg("Selected date:", as.character(selected_date))
-log_msg("Runs to process:", length(run_dirs))
-
-walk(run_dirs, ~process_gc_run(.x, tidy_root = tidy_root))
+# # Pick a date to run
+# selected_date <- as.Date("2023-07-18")
+# 
+# run_dirs <- list.dirs(gc_raw_root, recursive = TRUE, full.names = TRUE)
+# run_dirs <- run_dirs[file.exists(file.path(run_dirs, "sample_log.csv"))]
+# 
+# run_dirs <- run_dirs[
+#   !is.na(lubridate::mdy(stringr::str_replace_all(basename(run_dirs), "\\.", "/"))) &
+#   lubridate::mdy(stringr::str_replace_all(basename(run_dirs), "\\.", "/")) == selected_date
+# ]
+# 
+# log_msg("Selected date:", as.character(selected_date))
+# log_msg("Runs to process:", length(run_dirs))
+# 
+# walk(run_dirs, ~process_gc_run(.x, tidy_root = tidy_root))
 ```
 
 Check sampling date .csv for bad dates.
@@ -85,10 +90,10 @@ peak_summary <- list.files(
   unnest(data) %>%
   group_by(run_label) %>%
   summarize(
-    n_rows = n(),
-    n_na_meta = sum(is.na(site) | is.na(gc_run_date)),
-    n_na_heights = sum(is.na(co2_height) | is.na(ch4_height) | is.na(n2o_height)),
-    has_stds = any(str_detect(as.character(chamber), regex("std", ignore_case = TRUE))),
+    n_rows = n(), # number of rows in gc run(s) for that date
+    n_na_meta = sum(is.na(site) | is.na(gc_run_date)), # number of NAs in metadata columns  (for same date)
+    n_na_heights = sum(is.na(co2_height) | is.na(ch4_height) | is.na(n2o_height)), # number of na peak heights (for same date)
+    has_stds = any(str_detect(as.character(chamber), regex("std", ignore_case = TRUE))), # does gc run(s) include standards
     .groups = "drop"
   ) %>%
   arrange(run_label)
@@ -103,16 +108,19 @@ peak_summary %>%
 Check specific date tables.
 
 ```{r}
-run <- "230818"
+run <- "220722"
 
 ph <- read_csv(glue::glue("flux-processing/data/tidy/{run}/{run}_gc_peak_heights.csv"))
-sl <- read_csv(glue::glue("flux-processing/data/fluxes/gc-raw/2023/8.18.23/sample_log.csv")) %>%
+sl <- read_csv(glue::glue("flux-processing/data/fluxes/gc-raw/2022/7.22.22/sample_log.csv")) %>%
   janitor::clean_names()
 
 setdiff(unique(ph$filename), unique(sl$filename))
 setdiff(unique(sl$filename), unique(ph$filename))
 ```
 
+Secondary data check... output only contains dates with potential issues.
+
+  * Main concern is if `all_` columns are both TRUE. 
 
 ```{r identify-bad-processing}
 peak_files <- list.files(
@@ -193,6 +201,8 @@ peak_qc %>%
 
 # STEP 2 - CONVERT HEIGHTS TO PPM and OUTPUT SAMPLE PPM and STD PPM
 
+Note: chamber breakdown of unknown counts may be strange, but is addressed later.
+
 ```{r}
 # tidy_root should match what you used in step 01
 tidy_root <- "flux-processing/data/tidy"
@@ -231,6 +241,8 @@ ppm_batch %>% filter(!ok) %>% print(n = Inf)
 ppm_batch %>% count(ok)
 ```
 
+Review complete `_ghg_ppm.csv` file outputs. Length should match number of sampling dates.
+
 ```{r review-file}
 # tidy_root should match what you used in step 01
 tidy_root <- "flux-processing/data/tidy"
@@ -245,82 +257,21 @@ peak_files <- list.files(
 peak_files
 ```
 
-
-## Overview
-
-This RMarkdown runs the GC processing workflow in two steps for a single run date:
-	1.	Extract peak heights from all .txt files in the GC run folder and write a tidy CSV:
-	•	{tidy_root}/{run_label}/{run_label}_gc_peak_heights.csv
-	2.	Convert peak heights to ppm (using standards) and write:
-	•	{r  un_label}_std_heights.csv
-	•	{run_label}_ghg_ppm.csv (only if non-STD samples exist)
-
-Example run folder: flux-processing/data/fluxes/gc-raw/2022/7.9.22
-
-## 1 - Extract peak heights for 7.9.22
-
-```{r run-step-1}
-run_dir   <- "flux-processing/data/fluxes/gc-raw/2022/7.9.22"
-tidy_root <- "flux-processing/data/tidy"
-
-res_peaks <- process_gc_run(run_dir, tidy_root = tidy_root)
-```
-
-Inspect written peak heights
-
-```{r inspect-peaks}
-run_label  <- "220709"
-peaks_file <- file.path(tidy_root, run_label, paste0(run_label, "_gc_peak_heights.csv"))
-
-file.exists(peaks_file)
-ph <- readr::read_csv(peaks_file, show_col_types = FALSE)
-glimpse(ph)
-count(ph, chamber)
-```
-
-## QC - Diagnose and Flag Bad STD Injections
-
-```{r qc-chunk}
-stds_file <- file.path(tidy_root, run_label, paste0(run_label, "_gc_standards.csv"))
-
-file.exists(stds_file)
-stds <- readr::read_csv(stds_file, show_col_types = FALSE)
-
-stds %>%
-  pivot_longer(c(co2_height, ch4_height, n2o_height),
-               names_to = "gas",
-               values_to = "height") %>%
-  ggplot(aes(row, height)) +
-  geom_point() +
-  facet_wrap(~ gas, scales = "free_y") 
-```
+# STEP THREE - GET PEAK HEIGHTS AND MATCH SAMPLES/STDs USING SAMPLE_LOG.csv
 
 
-## 2 - Convert peak heights to ppm
+### NOTE TO SELF: BASED ON LAST CHATPGPT OUTPUT I SAVED PPM_TO_MOL.R AS NEW SCRIPT FUNCTION TO SOURCE
+### I THEN MOVED THE CHAMBER_VOLS AND CHAMBER_TEMPS READ CODE OUTSIDE THE SCRIPT TEMPORARILY (BELOW)
+### I THEN CHECKED/MOVED TEMPS/MIN-ELAPSED.CSV INTO RESPECTIVE FOLDER FOR EACH DATE, AND CHAMBER VOLS INTO DATES DIRECTORY
+### NEXT I SHOULD CREATE THE WRAPPER CODE TO RUN RECURSIVELY FOR ALL DATES, AND ADJUST PATHS AS NEEDED
 
-```{r run-step-2}
-# Converts the one run we just produced
-res_ppm <- heights_to_ppm(peaks_file)
-```
+```{r convert-ppm-mol}
+# --- read chamber metadata ---
+chamber_vols  <- readr::read_csv("chamber_vols.csv", show_col_types = FALSE)
+chamber_temps <- readr::read_csv("chamber_temps.csv", show_col_types = FALSE) %>%
+  mutate(date = as.character(date))  # e.g., "230802"
 
-```{r inspect-outputs}
-std_file <- file.path(dirname(peaks_file), paste0(run_label, "_std_heights.csv"))
-ppm_file <- file.path(dirname(peaks_file), paste0(run_label, "_ghg_ppm.csv"))
 
-file.exists(std_file)
-if (file.exists(std_file)) {
-  std <- readr::read_csv(std_file, show_col_types = FALSE)
-  print(std)
-}
-
-file.exists(ppm_file)
-if (file.exists(ppm_file)) {
-  ppm <- readr::read_csv(ppm_file, show_col_types = FALSE)
-  glimpse(ppm)
-  head(ppm, 10)
-} else {
-  message("No ghg_ppm.csv was written — likely because this run contains only standards (STD) and no non-STD samples.")
-}
 ```
 
 
