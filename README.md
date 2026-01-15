@@ -110,7 +110,7 @@ This step:
 - joins to `sample_log.csv`
 - writes `*_gc_peak_heights.csv` (+ standard subsets)
 
-Run via your RMarkdown driver or by calling:
+Run via your RMarkdown driver `gc-workflow.Rmd` or by calling:
 
 ```r
 walk(run_dirs, ~process_gc_run(.x, tidy_root = "flux-processing/data/tidy"))
@@ -155,8 +155,8 @@ Outputs are written alongside the input peak heights file in the same run folder
 
 If tank concentrations change, update those constants.
 
-### Suggested workflow for students
-	1.	Place .txt exports and sample_log.csv into the correct run folder.
+### Suggested workflow for students - USE `gc-workflow.Rmd`
+	1.	Place .txt exports and sample_log.csv into the correct run folders nested within correct directory structure.
 	2.	Ensure sample_log.csv headers exactly match the required template.
 	3.	Run Step 01 to generate peak heights.
 	4.	Run Step 02 to generate ppm outputs.
