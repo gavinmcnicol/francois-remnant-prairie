@@ -76,15 +76,17 @@ Each GC run folder must contain:
 - `sample_log.csv`
 
 Example structure:
+```
 flux-processing/
-data/
-fluxes/
-gc-raw/
-2023/
-7.18.23/
-sample_log.csv
-071823_001.txt
-071823_002.txt
+  data/
+    fluxes/
+      gc-raw/
+        2023/
+          7.18.23/
+            sample_log.csv
+            071823_001.txt
+            071823_002.txt
+```
 
 ### `sample_log.csv` required headers
 Your standardized column names should be:
