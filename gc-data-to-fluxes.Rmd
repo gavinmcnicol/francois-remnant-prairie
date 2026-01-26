@@ -1,0 +1,61 @@
+---
+title: "gc-data-to-fluxes"
+author: "Gavin McNicol"
+date: "2026-01-24"
+output: html_document
+---
+
+```{r setup, message=FALSE, warning=FALSE}
+library(tidyverse)
+
+script_dir <- "flux-processing/R"
+base_dir   <- "flux-processing/data/fluxes/gc-raw"          # <-- IMPORTANT: this is the run-folder tree
+tidy_root  <- "flux-processing/data/tidy"
+
+# Source the batch runner + dependencies it needs
+source(file.path(script_dir, "logging_helpers.R"))
+source(file.path(script_dir, "normalize_gc_filename_one.R"))
+source(file.path(script_dir, "extract_gc_run_date_from_txt.R"))
+source(file.path(script_dir, "get_peak_heights_from_file.R"))
+source(file.path(script_dir, "process_gc_run.R"))
+source(file.path(script_dir, "run_all_gc.R"))
+
+normalize_gc_filename <- function(x) vapply(x, normalize_gc_filename_one, character(1))
+```
+
+# Step 1: Extract peak heights
+
+
+```{r step1-one-date}
+# ---- RUN STEP 1 for ONE run folder ----
+run_dir <- "flux-processing/data/fluxes/gc-raw/2022/8.12.22"   # <-- change to your real folder
+process_gc_run(run_dir = run_dir, tidy_root = tidy_root)
+```
+
+
+```{r step1-all-dates}
+# run_all_gc(
+#   raw_gc_dir   = raw_gc_dir,
+#   tidy_root    = tidy_root,
+#   overwrite    = overwrite,
+#   verbose      = TRUE,
+#   date_filter  = run_label
+# )
+```
+
+# Step 2: Convert heights to ppm
+
+```{r step2}
+run_step02_all_dates(
+  tidy_root    = tidy_root,
+  overwrite    = overwrite,
+  verbose      = TRUE,
+  date_filter  = run_label
+)
+```
+
+Outputs written
+	•	tidy/<YYMMDD>/<YYMMDD>_ghg_heights.csv
+	•	tidy/<YYMMDD>/<YYMMDD>_ghg_ppm.csv
+
+

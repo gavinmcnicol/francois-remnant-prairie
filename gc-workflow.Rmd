@@ -24,9 +24,14 @@ library(DT)
 library(shiny)
 
 # source functions
-source("flux-processing/gc_batch_process.R")
-source("flux-processing/gc_heights_to_ppm.R")
-source("flux-processing/ppm_to_mol.R")
+# source("flux-processing/R/gc_batch_process.R")
+source("flux-processing/R/heights_to_ppm.R")
+source("flux-processing/R/ppm_to_amount.R")
+source("flux-processing/R/flag_and_drop_bad_jumps_iterative.R")
+source("flux-processing/R/flag_and_drop_bad_jumps.R")
+
+
+# source("flux-processing/run-step3-6.R")
 
 gc_raw_root <- params$gc_raw_root
 tidy_root   <- params$tidy_root
@@ -257,23 +262,214 @@ peak_files <- list.files(
 peak_files
 ```
 
-# STEP THREE - GET PEAK HEIGHTS AND MATCH SAMPLES/STDs USING SAMPLE_LOG.csv
+# STEP THREE - FIVE - FIT LINEAR MODELS AND GET SIGNIFICANT SLOPES
 
-
-### NOTE TO SELF: BASED ON LAST CHATPGPT OUTPUT I SAVED PPM_TO_MOL.R AS NEW SCRIPT FUNCTION TO SOURCE
-### I THEN MOVED THE CHAMBER_VOLS AND CHAMBER_TEMPS READ CODE OUTSIDE THE SCRIPT TEMPORARILY (BELOW)
-### I THEN CHECKED/MOVED TEMPS/MIN-ELAPSED.CSV INTO RESPECTIVE FOLDER FOR EACH DATE, AND CHAMBER VOLS INTO DATES DIRECTORY
-### NEXT I SHOULD CREATE THE WRAPPER CODE TO RUN RECURSIVELY FOR ALL DATES, AND ADJUST PATHS AS NEEDED
-
-```{r convert-ppm-mol}
-# --- read chamber metadata ---
-chamber_vols  <- readr::read_csv("chamber_vols.csv", show_col_types = FALSE)
-chamber_temps <- readr::read_csv("chamber_temps.csv", show_col_types = FALSE) %>%
-  mutate(date = as.character(date))  # e.g., "230802"
-
-
+```{r}
+date <- "220902"
+run_date_pipeline(run_label = date,
+                  k_jump = 1,
+                  k_out = 1)
 ```
 
+# inspect all bad fits
 
+```{r}
+library(tidyverse)
 
+tidy_root <- "flux-processing/data/tidy"
+
+# ---- set the date you want (YYMMDD)
+run_label_target <- date
+
+# 1) Find QC files and keep only the specified date
+qc_files_all <- list.files(
+  tidy_root,
+  pattern = "_flux_fits_qc\\.csv$",
+  full.names = TRUE,
+  recursive = TRUE
+)
+
+qc_files <- qc_files_all %>%
+  keep(~ str_detect(.x, paste0("/", run_label_target, "/"))) %>%  # folder filter
+  keep(~ str_detect(basename(.x), paste0("^", run_label_target))) # filename sanity check
+
+if (length(qc_files) == 0) {
+  stop("No QC files found for run_label_target = ", run_label_target,
+       " under ", tidy_root)
+}
+
+# 2) Read + bind, then filter non-OK
+fits_nonok <- tibble(qc_file = qc_files) %>%
+  mutate(
+    run_label = run_label_target,
+    dat = map(qc_file, ~ readr::read_csv(.x, show_col_types = FALSE))
+  ) %>%
+  unnest(dat) %>%
+  mutate(
+    qc_flag = as.character(qc_flag),
+    gas     = as.character(gas)
+  ) %>%
+  filter(!is.na(qc_flag), qc_flag != "OK") %>%
+  select(run_label, qc_flag, everything())
+
+# 3) Summaries
+fits_nonok %>%
+  count(gas, qc_flag, sort = TRUE) %>%
+  print(n = Inf)
+
+fits_nonok %>%
+  count(run_label, gas, qc_flag, sort = TRUE) %>%
+  print(n = 50)
+```
+
+# plot all fits
+
+```{r}
+library(tidyverse)
+
+tidy_root <- "flux-processing/data/tidy"
+
+# ---- set the date you want (YYMMDD)
+run_label_target <- date
+
+# Options
+gases_to_plot <- c("CO2_umol", "CH4_nmol", "N2O_nmol")
+save_plots <- TRUE
+
+plot_dir <- file.path(tidy_root, "_qc_plots", run_label_target)
+dir.create(plot_dir, showWarnings = FALSE, recursive = TRUE)
+
+# 1) Find QC + amount files for ONLY this date
+qc_files_all  <- list.files(tidy_root, pattern = "_flux_fits_qc\\.csv$", full.names = TRUE, recursive = TRUE)
+amt_files_all <- list.files(tidy_root, pattern = "_ghg_amount\\.csv$",    full.names = TRUE, recursive = TRUE)
+
+qc_files <- qc_files_all %>%
+  keep(~ str_detect(.x, paste0("/", run_label_target, "/"))) %>%
+  keep(~ str_detect(basename(.x), paste0("^", run_label_target)))
+
+amt_files <- amt_files_all %>%
+  keep(~ str_detect(.x, paste0("/", run_label_target, "/"))) %>%
+  keep(~ str_detect(basename(.x), paste0("^", run_label_target)))
+
+if (length(qc_files) == 0)  stop("No QC files found for ", run_label_target)
+if (length(amt_files) == 0) stop("No amount files found for ", run_label_target)
+
+read_csv0 <- function(f) readr::read_csv(f, show_col_types = FALSE)
+
+# 2) Read QC fits (date-restricted)
+fits_qc <- purrr::map_dfr(qc_files, read_csv0) %>%
+  mutate(
+    date = as.character(date),
+    ecosystem_name = as.character(ecosystem_name),
+    ecosystem_block = as.integer(ecosystem_block),
+    rep = as.integer(rep),
+    gas = as.character(gas),
+    qc_flag = as.character(qc_flag)
+  )
+
+# 3) Read amount rows (date-restricted), pivot longer to (gas, amount)
+amount_long <- purrr::map_dfr(amt_files, read_csv0) %>%
+  select(date, ecosystem_name, ecosystem_block, rep, time_point, min_elapsed,
+         co2_umol, ch4_nmol, n2o_nmol) %>%
+  mutate(
+    date = as.character(date),
+    ecosystem_name = as.character(ecosystem_name),
+    ecosystem_block = as.integer(ecosystem_block),
+    rep = as.integer(rep),
+    time_point = as.integer(time_point),
+    min_elapsed = as.numeric(min_elapsed)
+  ) %>%
+  pivot_longer(
+    cols = c(co2_umol, ch4_nmol, n2o_nmol),
+    names_to = "gas_col",
+    values_to = "amount"
+  ) %>%
+  mutate(
+    amount = as.numeric(amount),
+    gas = recode(gas_col,
+                 co2_umol = "CO2_umol",
+                 ch4_nmol = "CH4_nmol",
+                 n2o_nmol = "N2O_nmol")
+  ) %>%
+  select(-gas_col)
+
+# 4) Join amount to QC for ALL chamber-series (OK + non-OK)
+plot_df_all <- amount_long %>%
+  left_join(
+    fits_qc,
+    by = c("date", "ecosystem_name", "ecosystem_block", "rep", "gas")
+  ) %>%
+  mutate(
+    qc_flag = replace_na(qc_flag, "NO_QC_ROW"),
+    chamber_id = paste0(ecosystem_name, "-", ecosystem_block,
+                        " Rep ", rep, " (", date, ")"),
+    qc_label = paste0(qc_flag,
+                      " | R2=", ifelse(is.na(r.squared), "NA", signif(r.squared, 3)),
+                      " | p=",  ifelse(is.na(p_value),   "NA", signif(p_value, 3)),
+                      " | slope=", ifelse(is.na(slope), "NA", signif(slope, 3)))
+  )
+
+# 5) Plot helper
+make_gas_plot <- function(df, gas_name) {
+  d <- df %>% filter(gas == gas_name)
+
+  if (nrow(d) == 0) {
+    message("No data found for gas: ", gas_name)
+    return(NULL)
+  }
+
+  d <- d %>%
+    mutate(
+      qc_rank = case_when(
+        qc_flag == "OK" ~ 2L,
+        qc_flag == "NO_QC_ROW" ~ 3L,
+        TRUE ~ 1L
+      )
+    ) %>%
+    arrange(qc_rank, chamber_id) %>%
+    mutate(chamber_id = factor(chamber_id, levels = unique(chamber_id)))
+
+  ggplot(d, aes(x = min_elapsed, y = amount)) +
+    geom_point(aes(shape = factor(time_point), color = qc_flag), size = 3, alpha = 0.9) +
+    geom_smooth(method = "lm", se = FALSE, linewidth = 0.7, color = "black") +
+    facet_wrap(~ chamber_id) +
+    labs(
+      title = paste0("All chamber series (QC-colored): ", gas_name, " | ", run_label_target),
+      subtitle = "Black line = LM fit per chamber-series; points colored by qc_flag (OK vs non-OK).",
+      x = "Minutes elapsed",
+      y = gas_name,
+      color = "QC flag",
+      shape = "Timepoint"
+    ) +
+    theme_bw() +
+    theme(
+      strip.text = element_text(size = 10),
+      axis.text = element_text(size = 10),
+      legend.position = "bottom"
+    )
+}
+
+# 6) Generate plots for each gas
+plots <- purrr::map(gases_to_plot, ~ make_gas_plot(plot_df_all, .x))
+names(plots) <- gases_to_plot
+
+purrr::walk(plots, ~ if (!is.null(.x)) print(.x))
+
+# Save each gas to its own PDF
+if (isTRUE(save_plots)) {
+  purrr::iwalk(plots, function(p, gas_name) {
+    if (is.null(p)) return(invisible(NULL))
+    out_pdf <- file.path(plot_dir, paste0("qc_all_chambers_", run_label_target, "_", gas_name, ".pdf"))
+    ggsave(out_pdf, plot = p, width = 14, height = 10, units = "in")
+    message("Wrote: ", out_pdf)
+  })
+}
+```
+ 
+```{r}
+read_csv("flux-processing/data/tidy/220812/220812_flux_fits_flux.csv")
+```
+
+## DONE WITH CODE FOR GENERATING FLUXES, just need to do it now for all the dates, two issues: missing min_elapsed and temps for first two dates in 2022, and need to make sure date is correct in chamber_temps through all datse (noticed some duplicatoin)
+ 
 
